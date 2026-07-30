@@ -17,7 +17,7 @@ import logging
 
 from utils.config import MSDYOLOConfig
 from utils.degradation import ImageDegradation
-from utils.clearbranch import ClearBranchForward
+from utils.cbranch import ClearBranchForward
 from utils.sparse import SparsePredictionExtractor
 from utils.profiler import MemoryProfiler
 

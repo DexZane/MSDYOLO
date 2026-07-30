@@ -17,7 +17,7 @@ from utils.sparse import SparsePredictionExtractor, PredictionMatcher
 from utils.degradation import ImageDegradation
 from utils.config import MSDYOLOConfig
 from utils.trainer import MSDYOLOTrainer
-from utils.clearbranch import ClearBranchForward
+from utils.cbranch import ClearBranchForward
 
 
 class TestDecoder:
