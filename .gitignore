@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# PyTorch
+*.pth
+*.pt
+*.ckpt
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Training outputs
+runs/
+wandb/
+*.log
+
+# Data
+datasets/
+data/DOTA/
+data/HRSC2016/
+*.zip
+*.tar.gz
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*_old.py
+*_backup.py
+
+# Config backups
+*.yaml.bak
