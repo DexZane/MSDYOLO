@@ -128,7 +128,7 @@ class CheckTrainer:
         trainer = MSDYOLOTrainer(SimpleModel(), config, torch.device("cpu"))
         assert trainer.isbaselinemode()
         assert trainer.degradation is None
-        assert trainer.clearbranch is None
+        assert not trainer.distillationenabled
 
     def checktuplelossisretained(self):
         model = SimpleModel()

@@ -64,10 +64,13 @@ class MSDYOLOConfig:
             "distillation": {
                 "enabled": False,
                 "alpha": 0.1,
-                "matchiouthreshold": 0.5,
-                "losstype": "l1",
-                "angleweight": None,
-                "detectabilityweight": None,
+                "topk": 300,
+                "confidencethreshold": 0.25,
+                "iouthreshold": 0.1,
+                "distancethreshold": 2.0,
+                "classtemperature": 2.0,
+                "angletemperature": 2.0,
+                "shortedgethreshold": 8.0,
             },
             "profiling": {
                 "enabled": False,
@@ -127,15 +130,21 @@ class MSDYOLOConfig:
         self.set("ablationmode", mode)
         self.set("degradation.enabled", mode != "baseline")
         self.set("clearbranch.enabled", mode in {"withclearbranch", "full"})
-        self.set("distillation.enabled", False)
+        self.set("distillation.enabled", mode == "full")
         if mode == "full":
-            logger.warning("Full mode keeps distillation disabled before trainer integration")
+            logger.info("Full mode: enabled degradation + clearbranch + distillation")
 
     def validate(self):
         """验证阶段边界和退化参数。"""
         errors = []
-        if self.get("experiment.phase") == 1 and self.get("distillation.enabled"):
+        phase = self.get("experiment.phase")
+        if phase == 1 and self.get("distillation.enabled"):
             errors.append("Phase 1 does not allow distillation")
+        if self.get("distillation.enabled"):
+            if not self.get("degradation.enabled"):
+                errors.append("Distillation requires degradation.enabled=true")
+            if not self.get("clearbranch.enabled"):
+                errors.append("Distillation requires clearbranch.enabled=true")
         if self.get("clearbranch.enabled") and not self.get("degradation.enabled"):
             errors.append("Clear branch requires degradation")
         if self.get("degradation.downsample.enabled"):

@@ -18,6 +18,7 @@ class CheckDelivery:
             "msdyolo-baseline.yaml",
             "msdyolo-degradation.yaml",
             "msdyolo-clearbranch.yaml",
+            "msdyolo-full.yaml",
         }
 
     def checkallconfigsvalidate(self):
