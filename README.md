@@ -27,7 +27,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/MSDYOLO.git
+git clone https://github.com/DexZane/MSDYOLO.git
 cd MSDYOLO
 
 # Install dependencies
@@ -149,7 +149,7 @@ If you use MSDYOLO in your research, please cite:
   title = {MSDYOLO: Multi-Scale Distillation for Oriented Object Detection},
   author = {Your Name},
   year = {2024},
-  url = {https://github.com/yourusername/MSDYOLO}
+  url = {https://github.com/DexZane/MSDYOLO}
 }
 ```
 
