@@ -142,6 +142,8 @@ class ComputeLoss:
 
             n = b.shape[0]  # number of targets
             if n:
+                # 确保索引类型正确
+                b, a, gj, gi = b.long(), a.long(), gj.long(), gi.long()
                 ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets, (n_targets, self.no)
 
                 # Regression
@@ -264,7 +266,9 @@ class ComputeLoss:
             # Append
             a = t[:, -1].long()  # anchor indices 取整
             # indices.append((b, a, gj.clamp_(0, gain[3] - 1), gi.clamp_(0, gain[2] - 1)))  # image, anchor, grid indices
-            indices.append((b, a, gj.clamp_(0, feature_wh[1] - 1), gi.clamp_(0, feature_wh[0] - 1)))  # image, anchor, grid indices
+            gj_clamped = gj.clamp(0, feature_wh[1] - 1)
+            gi_clamped = gi.clamp(0, feature_wh[0] - 1)
+            indices.append((b, a, gj_clamped, gi_clamped))  # image, anchor, grid indices
             tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
             anch.append(anchors[a])  # anchors
             tcls.append(c)  # class

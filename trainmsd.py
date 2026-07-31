@@ -235,6 +235,7 @@ def main():
         imgsz,
         batch_size,
         gs,
+        names,  # names参数必须在第5位
         hyp=hyp,
         augment=True,
         cache=False,
@@ -243,8 +244,7 @@ def main():
         workers=0,
         image_weights=False,
         quad=False,
-        prefix=colorstr('train: '),
-        names=names  # 添加names参数
+        prefix=colorstr('train: ')
     )
     print(f"Dataloader created: {len(dataloader)} batches ✅")
 
@@ -273,8 +273,9 @@ def main():
     print(f"{'='*70}\n")
 
     # Get first batch
-    images, targets = next(iter(dataloader))
+    images, targets, paths, shapes = next(iter(dataloader))
     images = images.to(device, non_blocking=True).float() / 255.0
+    targets = targets.to(device, non_blocking=True)
 
     print(f"First batch loaded:")
     print(f"  - Images shape: {images.shape}")
