@@ -280,6 +280,17 @@ def main():
 
         print(f"Epoch {epoch + 1}/{epochs} completed: loss={lastresult['loss'].item():.6f}")
 
+    # 保存最终权重
+    savedir = Path("runs/train/exp/weights")
+    savedir.mkdir(parents=True, exist_ok=True)
+    checkpoint = {
+        "epoch": epochs,
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+    }
+    torch.save(checkpoint, savedir / "last.pt")
+    print(f"Training completed. Weights saved to {savedir / 'last.pt'}")
+
 
 if __name__ == "__main__":
     main()

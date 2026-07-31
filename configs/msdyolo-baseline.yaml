@@ -6,10 +6,10 @@ training:
   data: data/dota-test.yaml
   cfg: models/yolov5s.yaml
   weights: ''
-  epochs: 300
+  epochs: 50
   batchsize: 2
-  imagesize: 1024
-  device: '0'
+  imagesize: 320
+  device: cpu
   workers: 0
   hyp: data/hyps/obb/hyp.finetune_dota.yaml
 degradation:
