@@ -1,5 +1,13 @@
 # CP4-Pre技术定义修订要点 (v0.2)
 
+**⚠️ DEPRECATED - DO NOT USE FOR IMPLEMENTATION ⚠️**
+
+**This document (v0.2) is outdated and contains execution-level errors.**
+
+**Please use**: `docs/cp4pre_techdef.md` (v0.3 Final)
+
+---
+
 **修订日期**: 2026-07-31  
 **基于**: GPT第十一轮审核意见  
 **修订项**: 10项执行级问题

@@ -1,7 +1,15 @@
 # MSDYOLO CP4-Pre 技术定义文档
 
+**⚠️ DEPRECATED - DO NOT USE FOR IMPLEMENTATION ⚠️**
+
+**This document (v0.1) is outdated and contains execution-level errors.**
+
+**Please use**: `docs/cp4pre_techdef.md` (v0.3 Final)
+
+---
+
 **创建日期**: 2026-07-31  
-**状态**: CP4-Pre技术定义阶段  
+**状态**: 已废弃 (Deprecated)  
 **版本**: v0.1
 
 ---
