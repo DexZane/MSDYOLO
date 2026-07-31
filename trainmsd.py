@@ -243,7 +243,8 @@ def main():
         workers=0,
         image_weights=False,
         quad=False,
-        prefix=colorstr('train: ')
+        prefix=colorstr('train: '),
+        names=names  # 添加names参数
     )
     print(f"Dataloader created: {len(dataloader)} batches ✅")
 

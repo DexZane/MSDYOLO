@@ -3,14 +3,14 @@ experiment:
   description: Original YOLOv5-OBB baseline
   phase: 1
 training:
-  data: data/dotav15_poly.yaml
+  data: data/dota_test.yaml  # 使用测试数据集
   cfg: models/yolov5s.yaml
   weights: ''
   epochs: 300
   batch_size: 2  # 低显存配置
   img_size: 1024
   device: '0'
-  workers: 8
+  workers: 0  # 设为0避免多进程问题
   hyp: data/hyps/obb/hyp.finetune_dota.yaml
 degradation:
   enabled: false
