@@ -515,13 +515,26 @@ $ python trainmsd.py --config configs/msdyolo-full.yaml \
 
 **P0-A.2 Trainer集成代码级验收通过！**
 
-**Git版本**: 待提交 (P0-A.2.2)
+**当前Git版本**: 79d03d4 (文档修正完成)  
+**代码修正提交**: 888703c (P0-A.2.2)  
+**P0-A.1提交**: f0e3fd9  
 **标签**: p0a2-complete  
-**测试**: 87/87 passed  
+**测试**: 87/87 passed (P0-A.1阶段: 66项，P0-A.2增加: 21项)
 **确定性验证**: 10/10 runs passed
 **真实单批次 Baseline**: Loss 0.762591
 **真实单批次 Full**: Loss 0.761158, matchcount=0 (如实记录)
 
+**阶段状态总结**:
+- P0-A.1: 独立组件完成，66项历史测试通过
+- P0-A.2: Trainer代码级集成通过
+- P0-A.2.2: 验证收尾完成
+- 完整测试: 87/87 passed
+- 真实随机初始化Full单批次: matchcount=0，蒸馏损失为0
+- 受控非空匹配: 四个分量均非零，蒸馏损失可单独反向传播
+- GPU显存: 尚未验证
+- 完整DOTA: 尚未执行
+- 论文精度和负迁移效果: 尚未验证
+
 **状态**: Ready for GPU验证与完整DOTA实验
 
-**下一步**: 等待GPT最终批准后进入GPU验证阶段
+**下一步**: 预训练权重验证 → GPU显存测量 → 完整DOTA实验 → 论文撰写
