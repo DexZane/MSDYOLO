@@ -38,13 +38,13 @@ clearbranch:
   strategy: "evalmode"
   extractsparse: true
   topk: 300
-  confidencethreshold: 0.25
+  confidencethreshold: 0.10
 
 distillation:
   enabled: true
   alpha: 0.1
   topk: 300
-  confidencethreshold: 0.25
+  confidencethreshold: 0.10
   iouthreshold: 0.1
   distancethreshold: 2.0
   classtemperature: 2.0
