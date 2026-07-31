@@ -1,32 +1,44 @@
 """
 Pure Python Rotated NMS Implementation
-无需C++扩展的旋转框NMS实现
+使用Shapely实现正确的旋转框IoU计算
 """
 
 import torch
 import numpy as np
-import math
+import warnings
+
+try:
+    from shapely.geometry import Polygon
+    from shapely.validation import make_valid
+    SHAPELY_AVAILABLE = True
+except ImportError:
+    SHAPELY_AVAILABLE = False
+    warnings.warn(
+        "Shapely not available. Rotated IoU will use axis-aligned approximation. "
+        "Install with: pip install shapely"
+    )
 
 
 def box_iou_rotated(box1, box2):
     """
-    计算两个旋转框的IoU (纯Python实现)
+    计算两个旋转框的IoU (使用Shapely精确计算)
 
     Args:
         box1: (cx, cy, w, h, angle) angle in radians [-pi/2, pi/2)
         box2: (cx, cy, w, h, angle)
 
     Returns:
-        iou: float
+        iou: float in [0, 1]
     """
-    # 简化实现：使用外接矩形近似
-    # 完整实现需要Shapely或cv2.rotatedRectangleIntersection
+    if not SHAPELY_AVAILABLE:
+        # 回退到轴对齐近似
+        return _box_iou_axis_aligned_approx(box1, box2)
 
     # 计算旋转后的4个顶点
     def get_corners(box):
         cx, cy, w, h, angle = box
-        cos_a = math.cos(angle)
-        sin_a = math.sin(angle)
+        cos_a = np.cos(angle)
+        sin_a = np.sin(angle)
 
         # 4个顶点相对于中心的坐标
         dx = w / 2
@@ -40,19 +52,66 @@ def box_iou_rotated(box1, box2):
         ]
         return corners
 
-    # 获取外接矩形
-    def get_bounding_box(corners):
+    corners1 = get_corners(box1)
+    corners2 = get_corners(box2)
+
+    # 创建多边形
+    try:
+        poly1 = Polygon(corners1)
+        poly2 = Polygon(corners2)
+
+        # 确保多边形有效
+        if not poly1.is_valid:
+            poly1 = make_valid(poly1)
+        if not poly2.is_valid:
+            poly2 = make_valid(poly2)
+
+        # 计算交集和并集
+        intersection = poly1.intersection(poly2).area
+        union = poly1.union(poly2).area
+
+        if union < 1e-6:
+            return 0.0
+
+        iou = intersection / union
+
+        # 确保IoU在[0,1]范围内
+        return max(0.0, min(1.0, iou))
+
+    except Exception as e:
+        warnings.warn(f"Shapely polygon operation failed: {e}. Using fallback.")
+        return _box_iou_axis_aligned_approx(box1, box2)
+
+
+def _box_iou_axis_aligned_approx(box1, box2):
+    """
+    使用轴对齐外接矩形近似IoU（仅作为回退方案）
+
+    注意：这是近似值，不适用于大角度旋转的情况
+    """
+    def get_bounding_box(box):
+        cx, cy, w, h, angle = box
+        cos_a = np.cos(angle)
+        sin_a = np.sin(angle)
+
+        dx = w / 2
+        dy = h / 2
+
+        corners = [
+            (cx + dx * cos_a - dy * sin_a, cy + dx * sin_a + dy * cos_a),
+            (cx - dx * cos_a - dy * sin_a, cy - dx * sin_a + dy * cos_a),
+            (cx - dx * cos_a + dy * sin_a, cy - dx * sin_a - dy * cos_a),
+            (cx + dx * cos_a + dy * sin_a, cy + dx * sin_a - dy * cos_a),
+        ]
+
         xs = [c[0] for c in corners]
         ys = [c[1] for c in corners]
         return min(xs), min(ys), max(xs), max(ys)
 
-    corners1 = get_corners(box1)
-    corners2 = get_corners(box2)
+    x1_min, y1_min, x1_max, y1_max = get_bounding_box(box1)
+    x2_min, y2_min, x2_max, y2_max = get_bounding_box(box2)
 
-    x1_min, y1_min, x1_max, y1_max = get_bounding_box(corners1)
-    x2_min, y2_min, x2_max, y2_max = get_bounding_box(corners2)
-
-    # 计算外接矩形的IoU作为近似
+    # 计算外接矩形的IoU
     inter_x_min = max(x1_min, x2_min)
     inter_y_min = max(y1_min, y2_min)
     inter_x_max = min(x1_max, x2_max)
@@ -63,13 +122,16 @@ def box_iou_rotated(box1, box2):
 
     inter_area = (inter_x_max - inter_x_min) * (inter_y_max - inter_y_min)
 
-    area1 = box1[2] * box1[3]  # w * h
-    area2 = box2[2] * box2[3]
+    area1 = (x1_max - x1_min) * (y1_max - y1_min)
+    area2 = (x2_max - x2_min) * (y2_max - y2_min)
 
     union_area = area1 + area2 - inter_area
 
-    iou = inter_area / (union_area + 1e-6)
-    return iou
+    if union_area < 1e-6:
+        return 0.0
+
+    iou = inter_area / union_area
+    return max(0.0, min(1.0, iou))
 
 
 def obb_nms_python(dets, scores, iou_thr):
@@ -124,6 +186,58 @@ def obb_nms_python(dets, scores, iou_thr):
         keep_inds = keep_inds.numpy()
 
     return keep_inds
+
+
+def obb_nms_per_class(predictions, class_ids, iou_threshold=0.45, score_threshold=0.25):
+    """
+    按类别执行旋转NMS
+
+    Args:
+        predictions: (N, 5) [cx, cy, w, h, angle]
+        class_ids: (N,) 预测类别ID
+        iou_threshold: IoU阈值
+        score_threshold: 分数阈值
+
+    Returns:
+        keep_indices: (M,) 保留的索引
+    """
+    if len(predictions) == 0:
+        return torch.zeros(0, dtype=torch.long)
+
+    nc = int(class_ids.max()) + 1
+    keep_all = []
+
+    for cls in range(nc):
+        mask = class_ids == cls
+        if mask.sum() == 0:
+            continue
+
+        cls_boxes = predictions[mask]
+        cls_indices = torch.where(mask)[0]
+
+        # 假设predictions包含置信度分数
+        if cls_boxes.shape[1] > 5:
+            cls_scores = cls_boxes[:, 5]
+        else:
+            cls_scores = torch.ones(len(cls_boxes))
+
+        # 分数过滤
+        score_mask = cls_scores > score_threshold
+        if score_mask.sum() == 0:
+            continue
+
+        cls_boxes = cls_boxes[score_mask, :5]
+        cls_scores = cls_scores[score_mask]
+        cls_indices = cls_indices[score_mask]
+
+        # 旋转NMS
+        keep = obb_nms_python(cls_boxes, cls_scores, iou_threshold)
+        keep_all.append(cls_indices[keep])
+
+    if len(keep_all) == 0:
+        return torch.zeros(0, dtype=torch.long)
+
+    return torch.cat(keep_all)
 
 
 def obb_nms(dets, scores, iou_thr, device_id=None):
@@ -189,4 +303,4 @@ def poly_nms(dets, iou_thr, device_id=None):
     raise NotImplementedError("poly_nms requires C++ extension or external library")
 
 
-__all__ = ['obb_nms', 'poly_nms', 'obb_nms_python']
+__all__ = ['obb_nms', 'poly_nms', 'obb_nms_python', 'obb_nms_per_class', 'box_iou_rotated']
