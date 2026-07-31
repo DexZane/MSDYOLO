@@ -18,15 +18,34 @@ def restoretrainingstates(model, states):
             module.train(states[name])
 
 
-def teacherforward(model, cleanimages, topk=100):
+def teacherforward(model, cleanimages, topk=100, verbose=False):
     """以 eval 和 no_grad 执行清晰分支并返回完全分离的稀疏预测。"""
     states = moduletrainingstates(model)
     try:
         model.eval()
         with torch.no_grad():
             decodedoutput, teacherraw = model(cleanimages)
+
+            if verbose:
+                print(f"\n[teacherforward diagnostics]")
+                print(f"  Model training state: {model.training}")
+                print(f"  Raw outputs type: {type(teacherraw)}")
+                print(f"  Raw outputs count: {len(teacherraw)}")
+                for i, raw in enumerate(teacherraw):
+                    print(f"  Scale {i} shape: {raw.shape}")
+                    obj_logits = raw[..., 4]
+                    print(f"    Objectness logits: min={obj_logits.min():.6f} max={obj_logits.max():.6f} mean={obj_logits.mean():.6f}")
+                    obj_sigmoid = obj_logits.sigmoid()
+                    print(f"    Objectness sigmoid: min={obj_sigmoid.min():.6f} max={obj_sigmoid.max():.6f} mean={obj_sigmoid.mean():.6f}")
+
             del decodedoutput
             sparse = decodesparse(teacherraw, model, topk)
+
+            if verbose:
+                print(f"  Sparse predictions shape: {sparse.values.shape}")
+                conf_calc = sparse.values[..., 4].sigmoid() * sparse.values[..., 5:-180].sigmoid().amax(-1)
+                print(f"  Confidence (calculated): min={conf_calc.min():.6f} max={conf_calc.max():.6f} mean={conf_calc.mean():.6f}")
+
             detached = SparsePredictions(
                 *(tensor.detach() for tensor in sparse.tensors())
             )

@@ -60,6 +60,7 @@ def matchpredictions(
     confidencethreshold=0.25,
     iouthreshold=0.1,
     distancethreshold=2.0,
+    verbose=False,
 ):
     """教师按类/置信度/旋转 IoU 匹配 GT，学生按尺度归一化中心距离匹配。"""
     device = student.values.device
@@ -74,6 +75,13 @@ def matchpredictions(
     targetmatches = []
     classend = teacher.values.shape[-1] - 180
 
+    # 诊断统计
+    total_teacher_preds = 0
+    filtered_by_confidence = 0
+    filtered_by_class = 0
+    filtered_by_iou = 0
+    teacher_gt_pairs = 0
+
     for batchindex in range(student.values.shape[0]):
         targetindices = torch.where(targets[:, 0].long() == batchindex)[0]
         if targetindices.numel() == 0:
@@ -85,12 +93,21 @@ def matchpredictions(
         teacherangles = anglefromlogits(teachervalues[:, classend:])
         teachercandidates = []
 
+        total_teacher_preds += teachervalues.shape[0]
+
+        if verbose:
+            print(f"\n[Batch {batchindex}] Teacher predictions: {teachervalues.shape[0]}")
+            print(f"  Confidence: min={confidence.min():.6f} max={confidence.max():.6f} mean={confidence.mean():.6f}")
+            print(f"  Targets: {len(targetindices)}")
+
         for teacherindex in range(teachervalues.shape[0]):
             if confidence[teacherindex].item() < confidencethreshold:
+                filtered_by_confidence += 1
                 continue
             for targetindex in targetindices.tolist():
                 target = targets[targetindex]
                 if teacherclasses[teacherindex].item() != int(target[1].item()):
+                    filtered_by_class += 1
                     continue
                 teacherbox = [
                     *teachervalues[teacherindex, :4].detach().cpu().tolist(),
@@ -100,8 +117,15 @@ def matchpredictions(
                 iou = rotatediou(teacherbox, targetbox)
                 if iou >= iouthreshold:
                     teachercandidates.append((-iou, teacherindex, targetindex))
+                else:
+                    filtered_by_iou += 1
 
         teacherpairs = greedyunique(teachercandidates)
+        teacher_gt_pairs += len(teacherpairs)
+
+        if verbose and teacherpairs:
+            print(f"  Teacher-GT pairs after matching: {len(teacherpairs)}")
+
         if not teacherpairs:
             continue
 
@@ -123,6 +147,15 @@ def matchpredictions(
             studentmatches.append(studentindex)
             teachermatches.append(teacherindex)
             targetmatches.append(targetindex)
+
+    if verbose:
+        print(f"\n[Matching Summary]")
+        print(f"  Total teacher predictions: {total_teacher_preds}")
+        print(f"  Filtered by confidence<{confidencethreshold}: {filtered_by_confidence}")
+        print(f"  Filtered by class mismatch: {filtered_by_class}")
+        print(f"  Filtered by IoU<{iouthreshold}: {filtered_by_iou}")
+        print(f"  Teacher-GT pairs (after IoU): {teacher_gt_pairs}")
+        print(f"  Final student-teacher matches: {len(batchmatches)}")
 
     if not batchmatches:
         return emptymatches(device)

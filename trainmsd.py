@@ -225,6 +225,12 @@ def main():
     datadict = check_dataset(training["data"])
     model = loadmodel(training, hyp, datadict, device)
     trainer = MSDYOLOTrainer(model, config, device)
+
+    # 单批次模式启用详细日志
+    if arguments.singlebatch:
+        trainer.verbose = True
+        print("\n[Verbose mode enabled for single-batch diagnostics]\n")
+
     computeloss = ComputeLoss(model)
     dataloader, dataset, checkedsize = createdataloader(
         model,
