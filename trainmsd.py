@@ -118,8 +118,14 @@ def loadmodel(training, hyp, datadict, device):
     classcount = int(datadict["nc"])
     model = Model(training["cfg"], ch=3, nc=classcount, anchors=hyp.get("anchors")).to(device)
     if training["weights"]:
-        checkpoint = torch.load(training["weights"], map_location=device)
-        model.load_state_dict(checkpoint["model"].float().state_dict(), strict=False)
+        checkpoint = torch.load(training["weights"], map_location=device, weights_only=False)
+        # 排除检测头权重（model.24.m.*），仅加载backbone和neck
+        checkpointstate = checkpoint["model"].float().state_dict()
+        modelstate = model.state_dict()
+        filteredstate = {k: v for k, v in checkpointstate.items()
+                        if k in modelstate and v.shape == modelstate[k].shape}
+        model.load_state_dict(filteredstate, strict=False)
+        print(f"Loaded {len(filteredstate)}/{len(modelstate)} layers from pretrained weights")
     model.hyp = hyp
     model.nc = classcount
     model.names = datadict["names"]
