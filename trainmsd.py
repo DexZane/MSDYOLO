@@ -228,6 +228,8 @@ def main():
 
     epochs = 1 if arguments.singlebatch else training["epochs"]
     lastresult = None
+    loginterval = config.get("profiling.loginterval", 10)
+
     for epoch in range(epochs):
         for batchindex, (images, targets, paths, shapes) in enumerate(dataloader):
             images = images.to(device, non_blocking=True).float() / 255.0
@@ -253,7 +255,24 @@ def main():
                 print(f"  meansurvival={lastresult['meansurvival']:.6f}")
                 print(f"  meananglereliability={lastresult['meananglereliability']:.6f}")
                 return
-        print(f"Epoch {epoch + 1}/{epochs}: loss={lastresult['loss'].item():.6f}")
+
+            # 常规训练：按loginterval输出完整指标
+            if batchindex % loginterval == 0:
+                print(
+                    f"Epoch {epoch + 1}/{epochs} Batch {batchindex}/{len(dataloader)}: "
+                    f"loss={lastresult['loss'].item():.6f} "
+                    f"det={lastresult['detectionloss'].item():.6f} "
+                    f"distill={lastresult['distillationloss'].item():.6f} "
+                    f"cls={lastresult['classificationloss'].item():.6f} "
+                    f"ctr={lastresult['centerloss'].item():.6f} "
+                    f"scl={lastresult['scaleloss'].item():.6f} "
+                    f"ang={lastresult['angleloss'].item():.6f} "
+                    f"match={lastresult['matchcount']} "
+                    f"surv={lastresult['meansurvival']:.4f} "
+                    f"angrel={lastresult['meananglereliability']:.4f}"
+                )
+
+        print(f"Epoch {epoch + 1}/{epochs} completed: loss={lastresult['loss'].item():.6f}")
 
 
 if __name__ == "__main__":

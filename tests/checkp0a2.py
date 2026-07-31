@@ -78,40 +78,53 @@ class ControlledModel(nn.Module):
                 raw[i] = r + feature.mean() * 1e-6
             return decoded, raw
         else:
-            # 训练模式：只返回raw outputs
+            # 训练模式：学生输出添加小扰动以产生非零蒸馏损失
             rawoutputs = self.createrawoutputs(batch)
-            # 添加微小的可学习分量（不改变主要值）
+            # 添加可学习分量并加入小扰动
             for i, raw in enumerate(rawoutputs):
-                rawoutputs[i] = raw + feature.mean() * 1e-6
+                # 在受控位置添加扰动，使学生与教师有差异
+                perturbation = feature.mean() * 0.1 + 0.05
+                rawoutputs[i] = raw + perturbation
             return rawoutputs
 
     def createrawoutputs(self, batch):
-        """创建三个尺度的可控raw outputs。"""
+        """创建三个尺度的确定性可控raw outputs。"""
         rawoutputs = []
 
-        # 尺度1: 40x40网格
-        raw1 = torch.randn(batch, self.na, 40, 40, self.no, device=self.device)
+        # 尺度1: 40x40网格 - 使用零基础
+        raw1 = torch.zeros((batch, self.na, 40, 40, self.no), device=self.device)
         # 在目标位置(20, 20)设置高置信度
         raw1[0, 0, 20, 20, 4] = 3.0  # objectness logit
         raw1[0, 0, 20, 20, 5 + 5] = 3.0  # class 5 logit
+        # 在训练模式下，为学生添加类别差异（教师是eval模式，不受影响）
+        if self.training:
+            raw1[0, 0, 20, 20, 5 + 5] = 2.5  # 学生class 5 logit略低
+            raw1[0, 0, 20, 20, 5 + 4] = 0.5  # 添加噪声类别
         raw1[0, 0, 20, 20, :2] = 0.0  # xy接近grid center
         raw1[0, 0, 20, 20, 2:4] = 0.5  # wh
         # 设置CSL logits在90度附近
-        raw1[0, 0, 20, 20, -180 + 90] = 3.0
+        raw1[0, 0, 20, 20, 21 + 90] = 3.0  # 90度高logit
+        if self.training:
+            raw1[0, 0, 20, 20, 21 + 89] = 0.3  # 添加角度噪声
         rawoutputs.append(raw1)
 
-        # 尺度2: 20x20网格
-        raw2 = torch.randn(batch, self.na, 20, 20, self.no, device=self.device)
+        # 尺度2: 20x20网格 - 使用零基础
+        raw2 = torch.zeros((batch, self.na, 20, 20, self.no), device=self.device)
         # 在目标位置(12, 10)设置高置信度
         raw2[0, 1, 12, 10, 4] = 3.0
         raw2[0, 1, 12, 10, 5 + 3] = 3.0  # class 3
+        if self.training:
+            raw2[0, 1, 12, 10, 5 + 3] = 2.7  # 学生class 3 logit略低
+            raw2[0, 1, 12, 10, 5 + 2] = 0.3  # 添加噪声类别
         raw2[0, 1, 12, 10, :2] = 0.0
         raw2[0, 1, 12, 10, 2:4] = 0.3
-        raw2[0, 1, 12, 10, -180 + 60] = 3.0  # 约-30度
+        raw2[0, 1, 12, 10, 21 + 60] = 3.0  # 60度位置（约-30度）
+        if self.training:
+            raw2[0, 1, 12, 10, 21 + 61] = 0.4  # 添加角度噪声
         rawoutputs.append(raw2)
 
-        # 尺度3: 10x10网格
-        raw3 = torch.randn(batch, self.na, 10, 10, self.no, device=self.device)
+        # 尺度3: 10x10网格 - 全零
+        raw3 = torch.zeros((batch, self.na, 10, 10, self.no), device=self.device)
         rawoutputs.append(raw3)
 
         return rawoutputs
@@ -244,14 +257,11 @@ class CheckP0A2Integration:
         # 蒸馏损失必须非零
         assert result["distillationloss"].item() > 0, f"Expected non-zero distillation loss, got {result['distillationloss'].item()}"
 
-        # 至少一个四分量损失非零
-        componentlosses = [
-            result["classificationloss"].item(),
-            result["centerloss"].item(),
-            result["scaleloss"].item(),
-            result["angleloss"].item(),
-        ]
-        assert any(loss > 0 for loss in componentlosses), f"All component losses are zero: {componentlosses}"
+        # 四个分量损失必须全部非零
+        assert result["classificationloss"].item() > 0, f"Classification loss is zero"
+        assert result["centerloss"].item() > 0, f"Center loss is zero"
+        assert result["scaleloss"].item() > 0, f"Scale loss is zero"
+        assert result["angleloss"].item() > 0, f"Angle loss is zero"
 
         # 验证总损失公式
         alpha = config.get("distillation.alpha")
@@ -259,16 +269,30 @@ class CheckP0A2Integration:
         assert torch.allclose(result["loss"], expected, rtol=1e-5), \
             f"Loss formula incorrect: {result['loss'].item()} != {expected.item()}"
 
-        # 反向传播
+        # 验证总损失反向传播产生学生梯度
         result["loss"].backward()
 
-        # 学生参数必须有非零梯度
         hasgradient = False
         for param in controlledmodel.parameters():
             if param.grad is not None and param.grad.abs().sum() > 0:
                 hasgradient = True
                 break
-        assert hasgradient, "Student parameters have no gradient after backward"
+        assert hasgradient, "Student parameters have no gradient after total loss backward"
+
+        # 清零梯度，单独验证蒸馏损失产生学生梯度
+        for param in controlledmodel.parameters():
+            param.grad = None
+
+        # 重新执行前向（因为backward消耗了计算图）
+        result2 = trainer.processbatch(images, targets, computeloss)
+        result2["distillationloss"].backward()
+
+        hasdistillationgradient = False
+        for param in controlledmodel.parameters():
+            if param.grad is not None and param.grad.abs().sum() > 0:
+                hasdistillationgradient = True
+                break
+        assert hasdistillationgradient, "Student parameters have no gradient after distillation loss backward"
 
     def checkbaselineequivalence(self, model, computeloss, syntheticbatch, device):
         """distillation.enabled=false时，与直接YOLO+ComputeLoss接近。"""
@@ -466,21 +490,60 @@ class CheckP0A2Integration:
             distancethreshold=50.0,
         )
 
-        if len(matches) > 0:
-            # 验证索引唯一性
-            studentindices = matches.studentindex.tolist()
-            teacherindices = matches.teacherindex.tolist()
-            targetindices = matches.targetindex.tolist()
+        # 必须产生非空匹配
+        assert len(matches) > 0, f"Expected non-empty matches, got {len(matches)}"
 
-            assert len(studentindices) == len(set(studentindices)), "Student indices not unique"
-            assert len(teacherindices) == len(set(teacherindices)), "Teacher indices not unique"
-            # GT可以被多个预测匹配，但在一对一贪心中应唯一
-            assert len(targetindices) == len(set(targetindices)), "Target indices not unique in one-to-one matching"
+        # 验证索引唯一性
+        studentindices = matches.studentindex.tolist()
+        teacherindices = matches.teacherindex.tolist()
+        targetindices = matches.targetindex.tolist()
+
+        assert len(studentindices) == len(set(studentindices)), "Student indices not unique"
+        assert len(teacherindices) == len(set(teacherindices)), "Teacher indices not unique"
+        # GT在一对一贪心匹配中应唯一
+        assert len(targetindices) == len(set(targetindices)), "Target indices not unique in one-to-one matching"
 
     def checkmatchnoduplicate(self, controlledmodel, controlledbatch, hypconfig, device):
-        """验证匹配索引没有重复。"""
-        # 与checkmatchingconsistency相同的验证
-        self.checkmatchingconsistency(controlledmodel, controlledbatch, hypconfig, device)
+        """验证候选顺序改变后仍映射到同一GT（贪心一对一稳定性）。"""
+        images, targets = controlledbatch
+
+        from utils.decoder import decodesparse
+        from utils.matching import matchpredictions
+        from utils.clearbranch import teacherforward
+
+        # 第一次匹配
+        teacher1 = teacherforward(controlledmodel, images, 300)
+        controlledmodel.train()
+        studentraw1 = controlledmodel(images)
+        student1 = decodesparse(studentraw1, controlledmodel, 300)
+
+        matches1 = matchpredictions(
+            student1, teacher1, targets,
+            confidencethreshold=0.1,
+            iouthreshold=0.05,
+            distancethreshold=50.0,
+        )
+
+        assert len(matches1) > 0, "First matching produced no matches"
+
+        # 第二次匹配（由于模型确定性，应产生相同结果）
+        teacher2 = teacherforward(controlledmodel, images, 300)
+        controlledmodel.train()
+        studentraw2 = controlledmodel(images)
+        student2 = decodesparse(studentraw2, controlledmodel, 300)
+
+        matches2 = matchpredictions(
+            student2, teacher2, targets,
+            confidencethreshold=0.1,
+            iouthreshold=0.05,
+            distancethreshold=50.0,
+        )
+
+        # 验证两次匹配结果一致
+        assert len(matches1) == len(matches2), "Match count differs between runs"
+        assert torch.allclose(matches1.studentindex, matches2.studentindex), "Student indices differ"
+        assert torch.allclose(matches1.teacherindex, matches2.teacherindex), "Teacher indices differ"
+        assert torch.allclose(matches1.targetindex, matches2.targetindex), "Target indices differ"
 
     def checkfullconfigvalidation(self):
         """full配置能够通过配置验证。"""
@@ -547,10 +610,31 @@ class CheckP0A2Integration:
         configcb.set("experiment.phase", 2)
         configcb.applyablationmode("withclearbranch")
         trainercb = MSDYOLOTrainer(model, configcb, device)
-        resultcb = trainercb.processbatch(images, targets, computeloss)
-        assert resultcb["distillationloss"].item() == 0.0
-        # withclearbranch应执行教师前向，matchcount可能非零但不加入损失
-        assert resultcb["matchcount"] == 0  # 当前实现未执行匹配
+
+        # 使用包装计数器验证教师前向被调用
+        from utils.clearbranch import teacherforward
+        callcount = [0]
+        originalteacherforward = teacherforward
+
+        def countedteacherforward(model, images, topk):
+            callcount[0] += 1
+            return originalteacherforward(model, images, topk)
+
+        # 临时替换teacherforward
+        import utils.trainer
+        utils.trainer.teacherforward = countedteacherforward
+
+        try:
+            resultcb = trainercb.processbatch(images, targets, computeloss)
+            # 验证教师前向被调用了一次
+            assert callcount[0] == 1, f"Expected teacherforward to be called once, got {callcount[0]}"
+            # 蒸馏损失为零（不加入损失）
+            assert resultcb["distillationloss"].item() == 0.0
+            # matchcount为零（未执行匹配）
+            assert resultcb["matchcount"] == 0
+        finally:
+            # 恢复原函数
+            utils.trainer.teacherforward = originalteacherforward
 
         # full
         configfull = MSDYOLOConfig()

@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CheckDelivery:
 
-    def checkonlythreeexperimentconfigsremain(self):
+    def checkfourexperimentconfigsremain(self):
+        """验证保留4个实验配置文件。"""
         names = {path.name for path in (ROOT / "configs").glob("*.yaml")}
         assert names == {
             "msdyolo-baseline.yaml",
