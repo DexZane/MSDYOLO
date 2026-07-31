@@ -25,7 +25,7 @@ def trainonebatch(model, trainer, computeloss, images, targets, optimizer, devic
     loss = result["loss"]
     loss.backward()
     optimizer.step()
-    return loss.item()
+    return result
 
 
 def createparser():
@@ -227,11 +227,11 @@ def main():
     )
 
     epochs = 1 if arguments.singlebatch else training["epochs"]
-    lastloss = None
+    lastresult = None
     for epoch in range(epochs):
         for batchindex, (images, targets, paths, shapes) in enumerate(dataloader):
             images = images.to(device, non_blocking=True).float() / 255.0
-            lastloss = trainonebatch(
+            lastresult = trainonebatch(
                 model,
                 trainer,
                 computeloss,
@@ -241,9 +241,19 @@ def main():
                 device,
             )
             if arguments.singlebatch:
-                print(f"Single batch training completed with finite loss: {lastloss:.6f}")
+                print(f"Single batch training completed:")
+                print(f"  loss={lastresult['loss'].item():.6f}")
+                print(f"  detectionloss={lastresult['detectionloss'].item():.6f}")
+                print(f"  distillationloss={lastresult['distillationloss'].item():.6f}")
+                print(f"  classificationloss={lastresult['classificationloss'].item():.6f}")
+                print(f"  centerloss={lastresult['centerloss'].item():.6f}")
+                print(f"  scaleloss={lastresult['scaleloss'].item():.6f}")
+                print(f"  angleloss={lastresult['angleloss'].item():.6f}")
+                print(f"  matchcount={lastresult['matchcount']}")
+                print(f"  meansurvival={lastresult['meansurvival']:.6f}")
+                print(f"  meananglereliability={lastresult['meananglereliability']:.6f}")
                 return
-        print(f"Epoch {epoch + 1}/{epochs}: loss={lastloss:.6f}")
+        print(f"Epoch {epoch + 1}/{epochs}: loss={lastresult['loss'].item():.6f}")
 
 
 if __name__ == "__main__":

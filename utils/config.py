@@ -138,8 +138,8 @@ class MSDYOLOConfig:
         """验证阶段边界和退化参数。"""
         errors = []
         phase = self.get("experiment.phase")
-        if phase == 1 and self.get("distillation.enabled"):
-            errors.append("Phase 1 does not allow distillation")
+        if phase < 2 and self.get("distillation.enabled"):
+            errors.append("Phase < 2 does not allow distillation")
         if self.get("distillation.enabled"):
             if not self.get("degradation.enabled"):
                 errors.append("Distillation requires degradation.enabled=true")

@@ -97,10 +97,16 @@ class MSDYOLOTrainer:
         """
         imagesize = images.shape[-1]
 
-        # 如果不启用蒸馏，退化为标准YOLO训练
+        # withclearbranch模式：执行教师前向但不加入蒸馏损失（用于测量清晰分支开销）
+        if self.clearbranchenabled and not self.distillationenabled:
+            teacherforward(self.model, images, self.topk)  # 执行但丢弃结果
+            return self.baselineforward(images, targets, computeloss, imagesize)
+
+        # baseline或withdegradation模式：不执行教师前向
         if not self.distillationenabled:
             return self.baselineforward(images, targets, computeloss, imagesize)
 
+        # full模式：完整蒸馏流程
         # 阶段1：清晰分支教师前向（eval + no_grad）
         teacher = teacherforward(self.model, images, self.topk)
 
@@ -113,9 +119,12 @@ class MSDYOLOTrainer:
         studentraw = self.model(degradedimages)  # 训练模式返回raw outputs list
 
         # 阶段3：计算检测损失（ComputeLoss直接接受raw outputs）
-        detectionloss = computeloss(studentraw, targets)
-        if isinstance(detectionloss, tuple):
-            detectionloss = detectionloss[0]
+        lossoutput = computeloss(studentraw, targets)
+        if isinstance(lossoutput, tuple):
+            detectionloss, lossitems = lossoutput
+        else:
+            detectionloss = lossoutput
+            lossitems = detectionloss.detach()
 
         # 阶段4：稀疏解码学生输出（保持梯度）
         student = decodesparse(studentraw, self.model, self.topk)
@@ -172,7 +181,7 @@ class MSDYOLOTrainer:
             "matchcount": matchcount,
             "meansurvival": meansurvival,
             "meananglereliability": meananglereliability,
-            "lossitems": detectionloss.detach(),
+            "lossitems": lossitems,
             "predictions": studentraw,  # 返回raw outputs用于后续处理
         }
 

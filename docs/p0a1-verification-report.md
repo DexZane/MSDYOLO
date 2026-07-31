@@ -419,11 +419,11 @@ torch.cuda.max_memory_reserved()   # 峰值保留
 
 **P0-A.1独立组件验证完成！**
 
-**状态**: Ready for P0-A.2 Trainer Integration  
-**Git基线**: 待提交（命名迁移+P0-A.1实现）  
-**测试**: 66/66 passed  
-**真实单批次**: Loss 0.762591
+**状态**: P0-A.2 Trainer Integration 已完成（见 p0a2-completion-report.md）  
+**Git基线**: 待提交（命名迁移+P0-A.1实现+P0-A.2集成）  
+**测试**: 66/66 (P0-A.1) + 21/21 (P0-A.2+配置验证) = 87/87 passed  
+**真实单批次**: Baseline loss=1.423597, Full loss=1.401183 (matchcount=0)
 
 ---
 
-**下一步**: 等待GPT批准后进入P0-A.2 Trainer集成阶段
+**更新**: P0-A.2.1集成验证修正已完成（2026-07-31）

@@ -299,8 +299,9 @@ $ python trainmsd.py --config configs/msdyolo-baseline.yaml \
 **复核要点**: 阈值是否需要离线校准？
 
 **当前设置**:
-- 教师-GT: `confidencethreshold=0.25`, `iouthreshold=0.1`
-- 学生-GT: `distancethreshold=2.0`
+- confidencethreshold=0.25 (过滤低置信度预测)
+- iouthreshold=0.1 (教师-目标匹配)
+- distancethreshold=2.0 (学生-目标中心距离，像素)
 
 **验证**: 测试覆盖不同候选顺序和阈值边界
 
@@ -389,7 +390,7 @@ $ python trainmsd.py --config configs/msdyolo-baseline.yaml \
 | Phase 2 文献CP3 | ✅ 完成 | 22篇矩阵 + 8篇竞争对比 |
 | CP4-Pre 技术定义 | ✅ v0.4完成 | 唯一有效版本 |
 | **P0-A.1 独立组件** | ✅ **完成** | **66/66 tests** |
-| P0-A.2 trainer集成 | ⏳ 下阶段 | 待开始 |
+| **P0-A.2 Trainer集成** | ✅ **完成** | **21/21 tests + 修正验收** |
 | GPU完整DOTA实验 | ⏳ 下阶段 | 待上云 |
 
 ---
