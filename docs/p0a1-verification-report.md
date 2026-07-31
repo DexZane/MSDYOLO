@@ -1,26 +1,30 @@
 # MSDYOLO P0-A.1 最终验证报告
 
+**说明**: 本文记录P0-A.1历史验收结果。P0-A.2及P0-A.2.2的当前状态以`docs/p0a22-completion-report.md`和`P0-A.2.2-FINAL-REPORT.md`为准。
+
 **日期**: 2026-07-31  
-**Git提交**: f0e3fd9 (P0-A.1实现) + 后续报告提交  
+**Git提交**: f0e3fd9 (P0-A.1实现)
 **标签**: p0a1-complete  
 **验证范围**: 命名规范、P0-A.1独立组件、测试完整性
 
 ---
 
-## 一、执行摘要
+## 一、执行摘要（P0-A.1历史快照）
 
 ✅ **所有任务已完成并验证通过**
 
 - 命名迁移: 完成（MSDYOLO自有范围，由命名守卫定义）
 - P0-A.1独立组件: 100%实现
-- 测试覆盖: 66/66 passed
+- P0-A.1阶段测试覆盖: 66/66 passed
 - 真实单批次: Loss 0.762591
 
-**状态**: Ready for P0-A.2 Trainer Integration
+**P0-A.1完成时状态**: Ready for P0-A.2 Trainer Integration
+
+**当前状态**: P0-A.2 Trainer集成已完成（代码级验收通过），完整测试87/87 passed
 
 ---
 
-## 二、验证结果
+## 二、验证结果（P0-A.1历史快照）
 
 ### 2.1 测试通过情况
 
@@ -30,7 +34,7 @@ $ pytest -q
 66 passed, 2 warnings in 1.85s
 ```
 
-**测试分类**:
+**P0-A.1阶段测试分类**:
 - `checkall.py`: 6项 ✅
 - `checkbaseline.py`: 3项 ✅
 - `checknaming.py`: 6项 ✅
@@ -199,8 +203,9 @@ angle = survival² × anglereliability
 **问题**: 匹配阈值是否需要离线校准？
 
 **当前设置**:
-- 教师-GT: `confidencethreshold=0.25`, `iouthreshold=0.5`
-- 学生-GT: `distancethreshold=3.0` (归一化到短边)
+**当前实现阈值**:
+- 教师-GT: `confidencethreshold=0.25`, `iouthreshold=0.1`
+- 学生-GT: `distancethreshold=2.0` (无量纲：2倍目标短边)
 
 **验证**: 测试覆盖不同候选顺序和阈值边界情况
 
@@ -246,7 +251,7 @@ studentsparse = extractstudentsparse(...)
 
 **验证**: Python垃圾回收自动释放未引用对象
 
-**建议**: P0-A.2集成时可添加显式`del`和显存监控
+**建议**: 教师密集输出已在P0-A.1实现中显式释放。P0-A.2集成已完成并通过验证。
 
 ### 5.6 GPU显存allocated vs reserved ⏳
 
@@ -301,7 +306,7 @@ torch.cuda.max_memory_reserved()   # 峰值保留
 | Phase 2 文献CP3 | ✅ 完成 | 22篇矩阵 + 8篇竞争对比 |
 | CP4-Pre 技术定义 | ✅ v0.4完成 | 唯一有效版本 |
 | **P0-A.1 独立组件** | ✅ **完成** | **66/66 tests** |
-| P0-A.2 trainer集成 | ⏳ 下阶段 | 等待开始 |
+| P0-A.2 trainer集成 | ✅ 已完成 | 代码级验收通过（见P0-A.2.2报告） |
 | GPU完整DOTA实验 | ⏳ 下阶段 | 等待上云 |
 
 ---

@@ -1,7 +1,7 @@
 # MSDYOLO GPT/Claude综合审核完成汇报
 
 **完成时间**: 2026-07-31  
-**Git版本**: 待提交 (P0-A.2.2)
+**当前Git版本**: 888703c (P0-A.2.2)
 **标签**: p0a2-complete  
 **任务来源**: GPT/Claude综合审核报告
 
@@ -365,7 +365,7 @@ $ python trainmsd.py --config configs/msdyolo-full.yaml \
 
 **验证**: 教师稀疏提取后dense output超出作用域，代码显式执行 `del teacherraw, sparse` 和 `del predictions` 清理中间张量
 
-**建议**: P0-A.2可添加显式`del`和显存监控
+**P0-A.2状态**: 已集成完成，显存监控留待GPU验证阶段
 
 ### 4.6 GPU显存allocated vs reserved ⏳
 
