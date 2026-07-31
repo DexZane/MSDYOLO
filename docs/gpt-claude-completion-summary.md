@@ -27,7 +27,7 @@
 
 ---
 
-## 一、命名迁范完成（100%）
+## 一、命名迁移完成（MSDYOLO自有范围）
 
 ### 1.1 强制规则已应用
 
@@ -55,11 +55,16 @@
 
 ### 1.3 文件迁移记录
 
-**重命名文件**:
-- `test_*.py` → `check*.py` (6个测试文件)
+**测试文件**:
+- 迁移4个旧测试文件: `test_*.py` → `check*.py`
+- 新增2个测试文件: `checkp0a1.py`, `checkrotatediou.py`
+
+**其他重命名**:
 - `dota_test/` → `dota-test/` (目录)
 - `test_000.png` → `test000.png` (5个图像)
-- `msdyolo_*.yaml` → `msdyolo-*.yaml` (3个配置)
+
+**配置整合**:
+- 清理整合6个旧配置，最终保留3个配置: `msdyolo-baseline.yaml`, `msdyolo-degradation.yaml`, `msdyolo-clearbranch.yaml`
 
 **删除文件**:
 - 旧版CP4文档 (v0.1/v0.2/v0.3)
@@ -245,11 +250,13 @@ $ pytest -q
 
 | 测试组 | 文件 | 数量 | 状态 |
 |--------|------|------|------|
-| 命名守卫 | `checknaming.py` | 7 | ✅ |
+| 全部测试入口 | `checkall.py` | 6 | ✅ |
 | 基线等价性 | `checkbaseline.py` | 3 | ✅ |
-| P0基础设施 | `checkp0.py` | 25 | ✅ |
-| 旋转IoU | `checkrotatediou.py` | 16 | ✅ |
+| 命名守卫 | `checknaming.py` | 6 | ✅ |
+| P0基础设施 | `checkp0.py` | 14 | ✅ |
 | P0-A.1组件 | `checkp0a1.py` | 15 | ✅ |
+| 旋转IoU | `checkrotatediou.py` | 22 | ✅ |
+| **合计** | **6个文件** | **66** | ✅ |
 
 ### 3.2 真实单批次训练
 
@@ -292,8 +299,8 @@ $ python trainmsd.py --config configs/msdyolo-baseline.yaml \
 **复核要点**: 阈值是否需要离线校准？
 
 **当前设置**:
-- 教师-GT: `confidencethreshold=0.25`, `iouthreshold=0.5`
-- 学生-GT: `distancethreshold=3.0`
+- 教师-GT: `confidencethreshold=0.25`, `iouthreshold=0.1`
+- 学生-GT: `distancethreshold=2.0`
 
 **验证**: 测试覆盖不同候选顺序和阈值边界
 
@@ -326,7 +333,7 @@ $ python trainmsd.py --config configs/msdyolo-baseline.yaml \
 
 **当前实现**: Python垃圾回收自动释放未引用对象
 
-**验证**: 教师稀疏提取后dense output超出作用域
+**验证**: 教师稀疏提取后dense output超出作用域，代码显式执行 `del teacherraw, sparse` 和 `del predictions` 清理中间张量
 
 **建议**: P0-A.2可添加显式`del`和显存监控
 
@@ -360,7 +367,7 @@ $ python trainmsd.py --config configs/msdyolo-baseline.yaml \
 
 ### 5.2 保留文档
 
-- ✅ `docs/claude-review.md` - GPT综合审核报告
+- ✅ `docs/claude-review.md` - 面向Claude的综合审核报告
 - ✅ `docs/cp4pre-techdef.md` - v0.4唯一技术定义
 - ✅ `docs/p0a1-verification-report.md` - 本轮验证报告
 - ✅ 原有YOLOv5文档

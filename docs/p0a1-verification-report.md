@@ -1,7 +1,8 @@
 # MSDYOLO P0-A.1 最终验证报告
 
 **日期**: 2026-07-31  
-**Git基线**: 根据GPT/Claude要求完成的命名迁移和P0-A.1实现  
+**Git提交**: f0e3fd9 (P0-A.1实现) + 后续报告提交  
+**标签**: p0a1-complete  
 **验证范围**: 命名规范、P0-A.1独立组件、测试完整性
 
 ---
@@ -10,7 +11,7 @@
 
 ✅ **所有任务已完成并验证通过**
 
-- 命名迁移: 100%完成（连续小写规范）
+- 命名迁移: 完成（MSDYOLO自有范围，由命名守卫定义）
 - P0-A.1独立组件: 100%实现
 - 测试覆盖: 66/66 passed
 - 真实单批次: Loss 0.762591
@@ -30,11 +31,12 @@ $ pytest -q
 ```
 
 **测试分类**:
-- 命名守卫: 7项 ✅
-- 基线等价性: 3项 ✅
-- P0基础设施: 25项 ✅
-- 旋转IoU: 16项 ✅
-- P0-A.1组件: 15项 ✅
+- `checkall.py`: 6项 ✅
+- `checkbaseline.py`: 3项 ✅
+- `checknaming.py`: 6项 ✅
+- `checkp0.py`: 14项 ✅
+- `checkp0a1.py`: 15项 ✅
+- `checkrotatediou.py`: 22项 ✅
 
 **已知警告（不影响通过）**:
 1. `pkg_resources` 上游弃用警告
@@ -82,14 +84,13 @@ $ python trainmsd.py --config configs/msdyolo-baseline.yaml \
 
 ### 3.3 命名守卫测试
 
-`tests/checknaming.py` 包含7项守卫：
+`tests/checknaming.py` 包含6项守卫：
 1. ✅ Python文件名检查
 2. ✅ Python定义检查（函数/变量/属性）
 3. ✅ YAML键检查
 4. ✅ 有效文档路径检查
-5. ✅ Python示例命名检查
-6. ✅ 测试文件命名检查
-7. ✅ 配置文件命名检查
+5. ✅ 测试文件命名检查
+6. ✅ 配置文件命名检查
 
 ---
 
