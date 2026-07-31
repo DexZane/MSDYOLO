@@ -1,20 +1,13 @@
-# MSDYOLO Test Dataset Configuration
-# 最小DOTA格式测试数据集
-
-# Dataset paths
-path: data/dota_test  # dataset root dir
-train: images  # train images (relative to 'path')
-val: images  # val images (relative to 'path')
-
-# Classes
-nc: 16  # number of classes
+# P0 本地合成 DOTA 数据，仅用于 CPU 闭环验证。
+path: data/dota-test
+train: images
+val: images
+nc: 16
 names: ['plane', 'ship', 'storage-tank', 'baseball-diamond', 'tennis-court',
         'basketball-court', 'ground-track-field', 'harbor', 'bridge', 'large-vehicle',
         'small-vehicle', 'helicopter', 'roundabout', 'soccer-ball-field', 'swimming-pool',
-        'container-crane']  # class names
-
-# Dataset info
+        'container-crane']
 dataset: DOTA-Test
 description: Minimal DOTA format test dataset for P0 verification
 version: v1.5
-num_images: 5
+numimages: 5

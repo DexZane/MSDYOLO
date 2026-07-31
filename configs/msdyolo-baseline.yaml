@@ -3,20 +3,20 @@ experiment:
   description: Original YOLOv5-OBB baseline
   phase: 1
 training:
-  data: data/dota_test.yaml  # 使用测试数据集
+  data: data/dota-test.yaml
   cfg: models/yolov5s.yaml
   weights: ''
   epochs: 300
-  batch_size: 2  # 低显存配置
-  img_size: 1024
+  batchsize: 2
+  imagesize: 1024
   device: '0'
-  workers: 0  # 设为0避免多进程问题
+  workers: 0
   hyp: data/hyps/obb/hyp.finetune_dota.yaml
 degradation:
   enabled: false
   psf:
     enabled: false
-    kernel_size: 5
+    kernelsize: 5
     sigma: 1.0
   downsample:
     enabled: false
@@ -25,24 +25,24 @@ degradation:
     enabled: false
     type: gaussian
     level: 0.01
-  upsample_mode: bilinear
+  upsamplemode: bilinear
   seed: 42
-clear_branch:
+clearbranch:
   enabled: false
-  strategy: eval_mode
-  extract_sparse: true
-  top_k: 300
-  conf_threshold: 0.25
+  strategy: evalmode
+  extractsparse: true
+  topk: 300
+  confidencethreshold: 0.25
 distillation:
   enabled: false
   alpha: 0.1
-  match_iou_threshold: 0.5
-  loss_type: l1
-  angle_weight: null
-  detectability_weight: null
+  matchiouthreshold: 0.5
+  losstype: l1
+  angleweight: null
+  detectabilityweight: null
 profiling:
   enabled: false
-  log_interval: 100
-  save_stats: true
-  output_dir: runs/profiling
-ablation_mode: baseline
+  loginterval: 100
+  savestats: true
+  outputdir: runs/profiling
+ablationmode: baseline
