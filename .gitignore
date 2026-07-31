@@ -50,3 +50,21 @@ temp/
 
 # Config backups
 *.yaml.bak
+
+# Project documentation (not for GitHub)
+docs/p*.md
+docs/*-report*.md
+docs/*-summary.md
+*_diagnosis.log
+*_diagnostic.log
+*_verification.log
+diagnose_*.py
+quick_diagnose.py
+README_original.md
+
+# Large files
+*.ttf
+yolov5s.pt
+
+# External tools
+DOTA_devkit/

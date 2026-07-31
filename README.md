@@ -1,70 +1,179 @@
-# Yolov5 for Oriented Object Detection
-![图片](./docs/detection.png)
-![train_batch0.jpg](./docs/train_batch6.jpg)
-![results.png](./docs/results.png)
+# MSDYOLO: Multi-Scale Distillation for Oriented Object Detection
 
-The code for the implementation of “[Yolov5](https://github.com/ultralytics/yolov5) + [Circular Smooth Label](https://arxiv.org/abs/2003.05597v2)”. 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 1.10+](https://img.shields.io/badge/PyTorch-1.10+-ee4c2c.svg)](https://pytorch.org/)
 
-# Results and Models
-The results on **DOTA_subsize1024_gap200_rate1.0** test-dev set are shown in the table below. (**password: yolo**)
+**MSDYOLO** implements multi-scale distillation for oriented object detection in degraded images. Built on YOLOv5-OBB, it uses a teacher-student architecture to transfer knowledge from clear images to degraded views through four-component distillation.
 
- |Model<br><sup>(download link) |Size<br><sup>(pixels) | TTA<br><sup>(multi-scale/<br>rotate testing) | OBB mAP<sup>test<br><sup>0.5<br>DOTAv1.0 | OBB mAP<sup>test<br><sup>0.5<br>DOTAv1.5 | OBB mAP<sup>test<br><sup>0.5<br>DOTAv2.0 | Speed<br><sup>CPU b1<br>(ms)|Speed<br><sup>2080Ti b1<br>(ms) |Speed<br><sup>2080Ti b16<br>(ms) |params<br><sup>(M) |FLOPs<br><sup>@640 (B) 
- | ----                                                                                                                                                           | ---  | ---   | ---      | ---   | ---   | ---   | ---   | --- | --- | ---
- |yolov5m [[baidu](https://pan.baidu.com/s/1UPNaMuQ_gNce9167FZx8-w)/[google](https://drive.google.com/file/d/1NMgxcN98cmBg9_nVK4axxqfiq4pYh-as/view?usp=sharing)]  |1024  | ×     |**77.3** |**73.2** |**58.0**  |**328.2**      |**16.9**     |**11.3**      |**21.6**   |**50.5**   
- |yolov5s [[baidu](https://pan.baidu.com/s/1Lqw42xlSZxZn-2gNniBpmw?pwd=yolo)]    |1024  | ×     |**76.8**   |-      |-      |-      |**15.6**  | -     |**7.5**     |**17.5**    
- |yolov5n [[baidu](https://pan.baidu.com/s/1Lqw42xlSZxZn-2gNniBpmw?pwd=yolo)]    |1024  | ×     |**73.3**   |-      |-      |-      |**15.2**  | -     |**2.0**     |**5.0**
+## Features
 
+- 🎯 **Oriented Object Detection**: Full support for rotated bounding boxes (OBB)
+- 🔬 **Multi-Scale Distillation**: Four-component loss (classification, center, scale, angle)
+- 📉 **Degradation Simulation**: PSF blur, downsampling, and noise
+- 🎓 **Teacher-Student Architecture**: Knowledge distillation for degraded images
+- 🧪 **Comprehensive Testing**: 87 unit tests with full P0 verification
+- 📊 **DOTA Dataset**: Optimized for aerial/satellite imagery
 
-<details>
-  <summary>Table Notes (click to expand / **点我看更多**)</summary>
+## Installation
 
-* All checkpoints are trained to 300 epochs with [COCO pre-trained checkpoints](https://github.com/ultralytics/yolov5/releases/tag/v6.0), default settings and hyperparameters.
-* **mAP<sup>test dota</sup>** values are for single-model single-scale on [DOTA](https://captain-whu.github.io/DOTA/index.html)(1024,1024,200,1.0) dataset.<br>Reproduce Example:
- ```shell
- python val.py --data 'data/dotav15_poly.yaml' --img 1024 --conf 0.01 --iou 0.4 --task 'test' --batch 16 --save-json --name 'dotav15_test_split'
- python tools/TestJson2VocClassTxt.py --json_path 'runs/val/dotav15_test_split/best_obb_predictions.json' --save_path 'runs/val/dotav15_test_split/obb_predictions_Txt'
- python DOTA_devkit/ResultMerge_multi_process.py --scrpath 'runs/val/dotav15_test_split/obb_predictions_Txt' --dstpath 'runs/val/dotav15_test_split/obb_predictions_Txt_Merged'
- zip the poly format results files and submit it to https://captain-whu.github.io/DOTA/evaluation.html
- ```
-* **Speed** averaged over DOTAv1.5 val_split_subsize1024_gap200 images using a 2080Ti gpu. NMS + pre-process times is included.<br>Reproduce by `python val.py --data 'data/dotav15_poly.yaml' --img 1024 --task speed --batch 1`
+### Requirements
 
+- Python 3.8+
+- PyTorch 1.10+ with CUDA
+- 8GB+ GPU (recommended)
 
-</details>
+### Setup
 
-# [Updates](./docs/ChangeLog.md)
-- [2022/1/7] : **Faster and stronger**, some bugs fixed, yolov5 base version updated.
+```bash
+# Clone repository
+git clone https://github.com/yourusername/MSDYOLO.git
+cd MSDYOLO
 
+# Install dependencies
+pip install -r requirements.txt
 
-# Installation
-Please refer to [install.md](./docs/install.md) for installation and dataset preparation.
+# Download pretrained weights
+wget https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5s.pt
+```
 
-# Getting Started 
-This repo is based on [yolov5](https://github.com/ultralytics/yolov5). 
+## Quick Start
 
-And this repo has been rebuilt, Please see [GetStart.md](./docs/GetStart.md) for the Oriented Detection latest basic usage.
+### Training
 
-#  Acknowledgements
-I have used utility functions from other wonderful open-source projects. Espeicially thank the authors of:
+```bash
+# Baseline training (no degradation)
+python trainmsd.py --config configs/msdyolo-baseline-p2.yaml
 
-* [ultralytics/yolov5](https://github.com/ultralytics/yolov5).
-* [Thinklab-SJTU/CSL_RetinaNet_Tensorflow](https://github.com/Thinklab-SJTU/CSL_RetinaNet_Tensorflow).
-* [jbwang1997/OBBDetection](https://github.com/jbwang1997/OBBDetection)
-* [CAPTAIN-WHU/DOTA_devkit](https://github.com/CAPTAIN-WHU/DOTA_devkit)
-## More detailed explanation
-想要了解相关实现的细节和原理可以看我的知乎文章:   
-* [自己改建YOLOv5旋转目标的踩坑记录](https://www.zhihu.com/column/c_1358464959123390464).
+# Full training (with degradation and distillation)
+python trainmsd.py --config configs/msdyolo-full.yaml
+```
 
-## 有问题反馈
-在使用中有任何问题，建议先按照[install.md](./docs/install.md)检查环境依赖项，再按照[GetStart.md](./docs/GetStart.md)检查使用流程是否正确，善用搜索引擎和github中的issue搜索框，可以极大程度上节省你的时间。
+### Inference
 
-若遇到的是新问题，可以用以下联系方式跟我交流，为了提高沟通效率，请尽可能地提供相关信息以便我复现该问题。
+```bash
+# Detect objects with oriented bounding boxes
+python detect.py --weights runs/train/exp/weights/best.pt \
+                 --source data/images/ \
+                 --conf 0.25
+```
 
-* 知乎（@[略略略](https://www.zhihu.com/people/lue-lue-lue-3-92-86)）
-* 代码问题提issues,其他问题请知乎上联系
+### Testing
 
-## 关于作者
+```bash
+# Run full test suite
+pytest tests/ -v
 
-```javascript
-  Name  : "胡凯旋"
-  describe myself："咸鱼一枚"
+# Run specific test category
+pytest tests/test_distillation.py -v
+```
 
+## Configuration
+
+Four training modes available:
+
+| Mode | Degradation | Clear Branch | Distillation |
+|------|-------------|--------------|--------------|
+| **Baseline** | ❌ | ❌ | ❌ |
+| **WithDegradation** | ✅ | ❌ | ❌ |
+| **WithClearBranch** | ❌ | ✅ | ❌ |
+| **Full** | ✅ | ✅ | ✅ |
+
+See `configs/` directory for example configurations.
+
+## Dataset Preparation
+
+### DOTA Dataset
+
+1. Download DOTA v1.5 from [official website](https://captain-whu.github.io/DOTA/dataset.html)
+2. Split images into patches:
+
+```bash
+git clone https://github.com/CAPTAIN-WHU/DOTA_devkit.git
+cd DOTA_devkit
+python ImgSplit_multi_process.py \
+  --srcpath /path/to/DOTA/train \
+  --dstpath /path/to/DOTA/train_split_1024 \
+  --subsize 1024 --gap 200
+```
+
+3. Update `data/dotav15_poly.yaml` with your dataset path
+
+## Architecture
+
+```
+┌─────────────┐
+│ Clear Image │
+└──────┬──────┘
+       │
+       ├─────────────────┐
+       │                 │
+       v                 v
+┌─────────────┐   ┌─────────────┐
+│  Degradation│   │   Teacher   │
+│   (PSF +    │   │  (Frozen)   │
+│  Downsample)│   │             │
+└──────┬──────┘   └──────┬──────┘
+       │                 │
+       v                 v
+┌─────────────┐   ┌─────────────┐
+│   Student   │   │  Knowledge  │
+│  (Training) │◄──┤ Distillation│
+└─────────────┘   └─────────────┘
+```
+
+## Project Structure
+
+```
+MSDYOLO/
+├── configs/              # Training configurations
+├── data/                 # Dataset configs and samples
+├── models/               # Model architectures
+├── scripts/              # Training and deployment scripts
+├── tests/                # Unit tests (87 tests)
+├── utils/                # Core utilities
+│   ├── degradation.py    # Image degradation
+│   ├── distillation.py   # Four-component loss
+│   ├── matching.py       # Teacher-student matching
+│   └── routing.py        # Adaptive routing
+├── trainmsd.py           # Main training script
+└── detect.py             # Inference script
+```
+
+## Citation
+
+If you use MSDYOLO in your research, please cite:
+
+```bibtex
+@software{msdyolo2024,
+  title = {MSDYOLO: Multi-Scale Distillation for Oriented Object Detection},
+  author = {Your Name},
+  year = {2024},
+  url = {https://github.com/yourusername/MSDYOLO}
+}
+```
+
+## Acknowledgments
+
+- Built on [YOLOv5](https://github.com/ultralytics/yolov5) by Ultralytics
+- OBB support from [YOLOv5_DOTA_OBB](https://github.com/hukaixuan19970627/yolov5_obb)
+- DOTA dataset from [DOTA-devkit](https://github.com/CAPTAIN-WHU/DOTA_devkit)
+
+## License
+
+This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) file for details.
+
+## Development Status
+
+- ✅ **P0**: Code verification and testing (87/87 tests passing)
+- ✅ **P1**: Root cause diagnosis (detection head initialization)
+- 🚧 **P2**: Baseline detector training (in progress)
+- ⏳ **P3**: Full distillation experiments (pending)
+
+## Contact
+
+For questions and issues, please open a GitHub issue.
+
+---
+
+**Note**: This is a research implementation. For production use, additional optimization and testing are recommended.
