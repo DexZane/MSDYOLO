@@ -7,7 +7,7 @@ training:
   cfg: models/yolov5s.yaml
   weights: ''
   epochs: 300
-  batch_size: 16
+  batch_size: 2  # 低显存配置
   img_size: 1024
   device: '0'
   workers: 8

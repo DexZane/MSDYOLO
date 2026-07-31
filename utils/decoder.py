@@ -158,7 +158,7 @@ def test_decoder():
 
     # 模拟eval模式输出
     B, N = 1, 100
-    no = 5 + 15 + 180
+    no = 5 + 16 + 180  # 16类 DOTA v1.5
 
     # 创建模拟输出（已sigmoid、已解码坐标）
     decoded_preds = torch.rand(B, N, no)

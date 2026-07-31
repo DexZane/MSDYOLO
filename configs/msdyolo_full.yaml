@@ -1,13 +1,14 @@
 experiment:
   name: msdyolo_full
-  description: MSDYOLO full system with degradation and distillation (Phase 2)
-  phase: 2
+  description: MSDYOLO full system - PROTOTYPE ONLY (Phase 2 not implemented)
+  phase: 1
+  prototype_only: true
 training:
   data: data/dotav15_poly.yaml
   cfg: models/yolov5s.yaml
   weights: ''
   epochs: 300
-  batch_size: 16
+  batch_size: 2  # 低显存配置
   img_size: 1024
   device: '0'
   workers: 8
@@ -34,7 +35,7 @@ clear_branch:
   top_k: 300
   conf_threshold: 0.25
 distillation:
-  enabled: true
+  enabled: false  # Phase 1不允许启用，改为false
   alpha: 0.1
   match_iou_threshold: 0.5
   loss_type: l1

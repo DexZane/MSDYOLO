@@ -24,7 +24,7 @@ class TestDecoder:
         decoder = YOLOOutputDecoder(num_classes=16)
 
         # 模拟eval输出
-        B, N, no = 1, 10, 5 + 15 + 180
+        B, N, no = 1, 10, 5 + 16 + 180  # 16类
         preds = torch.rand(B, N, no)
 
         boxes, theta, obj, cls_prob, cls_id, batch_indices = decoder.decode((preds, None), model_training=False)
@@ -114,7 +114,7 @@ class TestTrainer:
             def __init__(self):
                 super().__init__()
                 self.conv = nn.Conv2d(3, 16, 3)
-                self.nc = 15
+                self.nc = 16  # 16类
 
             def forward(self, x):
                 return [self.conv(x)]

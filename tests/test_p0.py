@@ -27,7 +27,7 @@ class TestDecoder:
         """测试CSL角度解码正确性"""
         decoder = YOLOOutputDecoder(num_classes=16)
         B, N = 1, 100
-        no = 5 + 15 + 180
+        no = 5 + 16 + 180  # 16类
 
         decoded_preds = torch.rand(B, N, no)
         decoded_preds[..., :4] = decoded_preds[..., :4] * 1024
@@ -43,7 +43,7 @@ class TestDecoder:
     def test_batch_size_support(self):
         """GPT要求：测试batch size 1和2支持"""
         decoder = YOLOOutputDecoder(num_classes=16)
-        no = 5 + 15 + 180
+        no = 5 + 16 + 180  # 16类
 
         # Batch size 1
         decoded_preds_1 = torch.rand(1, 50, no)
@@ -99,7 +99,7 @@ class TestSparsePrediction:
 
     def test_one_to_one_matching_nonempty(self):
         """GPT要求：非空确定性匹配测试"""
-        nc = 15
+        nc = 16  # 修正：16类
         device = torch.device('cpu')
 
         clear_boxes = torch.tensor([
@@ -142,7 +142,7 @@ class TestSparsePrediction:
 
     def test_class_filtering(self):
         """GPT要求：类别过滤测试"""
-        nc = 15
+        nc = 16  # 修正：16类
         device = torch.device('cpu')
 
         clear_preds = {
@@ -171,7 +171,7 @@ class TestSparsePrediction:
 
     def test_empty_input(self):
         """GPT要求：空输入测试"""
-        nc = 15
+        nc = 16  # 修正：16类
         device = torch.device('cpu')
 
         extractor = SparsePredictionExtractor(num_classes=nc)

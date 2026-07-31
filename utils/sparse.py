@@ -276,7 +276,7 @@ def test_sparse_extraction():
     # 测试1: batch_size=1
     print("\n=== Test 1: Batch size 1 ===")
     B, N = 1, 100
-    nc = 15
+    nc = 16  # 16类 DOTA v1.5
     no = 5 + nc + 180
 
     decoded_preds = torch.rand(B, N, no, device=device)

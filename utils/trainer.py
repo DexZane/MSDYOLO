@@ -185,7 +185,7 @@ def test_trainer():
         def __init__(self):
             super().__init__()
             self.conv = nn.Conv2d(3, 16, 3)
-            self.nc = 15  # 类别数
+            self.nc = 16  # 16类 DOTA v1.5
 
         def forward(self, x):
             return [self.conv(x)]
