@@ -119,8 +119,16 @@ def loadmodel(training, hyp, datadict, device):
     model = Model(training["cfg"], ch=3, nc=classcount, anchors=hyp.get("anchors")).to(device)
     if training["weights"]:
         checkpoint = torch.load(training["weights"], map_location=device, weights_only=False)
-        # 排除检测头权重（model.24.m.*），仅加载backbone和neck
-        checkpointstate = checkpoint["model"].float().state_dict()
+        # 处理两种checkpoint格式：YOLOv5格式（有model对象）和直接state_dict格式
+        if isinstance(checkpoint, dict) and "model" in checkpoint:
+            checkpointstate = checkpoint["model"]
+            if hasattr(checkpointstate, "float"):
+                checkpointstate = checkpointstate.float().state_dict()
+            elif isinstance(checkpointstate, dict):
+                checkpointstate = checkpointstate
+        else:
+            checkpointstate = checkpoint
+
         modelstate = model.state_dict()
         filteredstate = {k: v for k, v in checkpointstate.items()
                         if k in modelstate and v.shape == modelstate[k].shape}
