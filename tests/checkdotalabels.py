@@ -54,6 +54,15 @@ class CheckDotaLabels:
         with pytest.raises(ValueError, match="degenerate polygon"):
             parse_dota_label(label)
 
+    def checklargeoffsetnondegeneratepolygonparses(self, tmp_path: Path):
+        label = tmp_path / "large-offset.txt"
+        label.write_text(
+            "1000000000000 1000000000000 1000000000100 1000000000000 "
+            "1000000000100 1000000000100 1000000000000 1000000000100 ship 0\n",
+            encoding="utf-8",
+        )
+        assert len(parse_dota_label(label)) == 1
+
     def checksplitwritesclippedpixellabelstolabeltxt(self, tmp_path: Path):
         image = tmp_path / "image.png"
         assert cv2.imwrite(str(image), np.zeros((1200, 1200, 3), dtype=np.uint8))

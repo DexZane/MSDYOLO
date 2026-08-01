@@ -37,11 +37,13 @@ def is_degenerate_polygon(
 ) -> bool:
     """Return whether a quadrilateral has zero signed area."""
     points = tuple(zip(coordinates[::2], coordinates[1::2]))
+    xorigin, yorigin = points[0]
+    points = tuple((xvalue - xorigin, yvalue - yorigin) for xvalue, yvalue in points)
     signed_area = sum(
         xcurrent * ynext - xnext * ycurrent
         for (xcurrent, ycurrent), (xnext, ynext) in zip(points, points[1:] + points[:1])
     )
-    scale = max(1.0, *(abs(value) for value in coordinates))
+    scale = max(1.0, *(abs(value) for point in points for value in point))
     return math.isclose(signed_area, 0.0, abs_tol=1e-12 * scale * scale)
 
 
