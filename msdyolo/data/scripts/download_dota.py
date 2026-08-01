@@ -1,99 +1,144 @@
 #!/usr/bin/env python3
-"""
-DOTA v1.5 Dataset Downloader using OpenDataLab SDK
-Automatically downloads and organizes DOTA dataset structure
-"""
+"""Download and validate the DOTA v1.5 dataset from OpenDataLab."""
 
-import os
+from __future__ import annotations
+
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
-def download_dota_sdk(target_dir='dataset/DOTA'):
-    """Download DOTA v1.5 using OpenDataLab SDK"""
+
+DATASET_REPOSITORY = "OpenDataLab/DOTA_V1_dot_5"
+_NESTED_LABEL_DIRECTORIES = {
+    "train": "DOTA-v1.5_train",
+    "val": "DOTA-v1.5_val",
+}
+
+
+@dataclass(frozen=True)
+class DatasetStatus:
+    """The raw DOTA files needed to prepare training data."""
+
+    ready: bool
+    trainimages: int
+    trainlabels: int
+    valimages: int
+    errors: tuple[str, ...]
+
+
+def _count_files(directory: Path, suffix: str | None = None) -> int:
+    if not directory.is_dir():
+        return 0
+    return sum(
+        path.is_file() and (suffix is None or path.suffix == suffix)
+        for path in directory.iterdir()
+    )
+
+
+def verify_dataset(dataset_dir: Path | str = "dataset/DOTA") -> DatasetStatus:
+    """Report whether DOTA has the raw files required for preparation.
+
+    Official DOTA v1.5 validation labels are optional, so readiness depends only
+    on train images, train labels, and validation images.
+    """
+
+    dataset_path = Path(dataset_dir)
+    trainimages = _count_files(dataset_path / "train" / "images")
+    trainlabels = _count_files(dataset_path / "train" / "labelTxt", ".txt")
+    valimages = _count_files(dataset_path / "val" / "images")
+    errors: list[str] = []
+    if trainimages == 0:
+        errors.append("no training images found in train/images")
+    if trainlabels == 0:
+        errors.append("no training labels found in train/labelTxt")
+    if valimages == 0:
+        errors.append("no validation images found in val/images")
+    return DatasetStatus(
+        ready=trainimages > 0 and trainlabels > 0 and valimages > 0,
+        trainimages=trainimages,
+        trainlabels=trainlabels,
+        valimages=valimages,
+        errors=tuple(errors),
+    )
+
+
+def normalize_download_layout(dataset_dir: Path | str = "dataset/DOTA") -> DatasetStatus:
+    """Flatten recognized OpenDataLab label directories without data loss."""
+
+    dataset_path = Path(dataset_dir)
+    for split, nested_name in _NESTED_LABEL_DIRECTORIES.items():
+        label_directory = dataset_path / split / "labelTxt"
+        nested_directory = label_directory / nested_name
+        if not nested_directory.is_dir():
+            continue
+
+        label_files = [
+            source
+            for source in nested_directory.iterdir()
+            if source.is_file() and source.suffix == ".txt"
+        ]
+        for source in label_files:
+            destination = label_directory / source.name
+            if destination.exists() and destination.read_bytes() != source.read_bytes():
+                raise FileExistsError(
+                    f"refusing to overwrite distinct label: {destination}"
+                )
+
+        for source in label_files:
+            destination = label_directory / source.name
+            if destination.exists():
+                source.unlink()
+            else:
+                source.rename(destination)
+        if not any(nested_directory.iterdir()):
+            nested_directory.rmdir()
+
+    (dataset_path / "val" / "labelTxt").mkdir(parents=True, exist_ok=True)
+    return verify_dataset(dataset_path)
+
+
+def _resolve_openxlab_download() -> Callable[..., object]:
     try:
         from openxlab.dataset import download
-        print("✓ OpenDataLab SDK imported")
-    except ImportError:
-        print("✗ OpenDataLab SDK not found, installing...")
-        os.system("pip install -q openxlab")
-        from openxlab.dataset import download
-        print("✓ OpenDataLab SDK installed")
+    except ImportError as error:
+        raise RuntimeError(
+            "OpenDataLab SDK is unavailable; install the cloud extra before downloading."
+        ) from error
+    return download
 
-    # Create target directory
+
+def download_dota_sdk(
+    target_dir: Path | str = "dataset/DOTA", download_fn: Callable[..., object] | None = None
+) -> bool:
+    """Download DOTA v1.5 through the SDK, returning whether the request succeeded."""
+
     target_path = Path(target_dir)
     target_path.mkdir(parents=True, exist_ok=True)
-
-    print(f"\n{'='*50}")
-    print("DOTA v1.5 Dataset Download")
-    print(f"{'='*50}")
-    print(f"Target: {target_path.absolute()}")
-    print(f"Source: OpenDataLab/DOTA_V1_dot_5")
-    print(f"Size: ~18-20GB (full dataset)")
-    print(f"Time: ~30-60 minutes depending on network")
-    print(f"{'='*50}\n")
-
-    # Download dataset
+    download = _resolve_openxlab_download() if download_fn is None else download_fn
     try:
-        print("Starting download (this may take 30-60 minutes)...")
         download(
-            dataset_repo='OpenDataLab/DOTA_V1_dot_5',
-            source_path='',  # Empty string downloads entire dataset
-            target_path=str(target_path)
+            dataset_repo=DATASET_REPOSITORY,
+            source_path="",
+            target_path=str(target_path),
         )
-        print("\n✓ Download complete!")
-        return True
-
-    except Exception as e:
-        print(f"\n✗ Download failed: {e}")
-        print("\nAlternative download methods:")
-        print("1. Baidu NetDisk: https://pan.baidu.com/s/1getIv5_RQR4mCi0yTOE0cA (code: DOTA)")
-        print("2. Official site: https://captain-whu.github.io/DOTA/dataset.html")
-        print("3. Academic Torrents: https://academictorrents.com/")
+    except Exception as error:
+        print(f"DOTA download failed: {error}")
         return False
+    return True
 
-def verify_dataset(dataset_dir='dataset/DOTA'):
-    """Verify downloaded dataset structure"""
-    dataset_path = Path(dataset_dir)
 
-    required_dirs = [
-        'train/images',
-        'train/labelTxt',
-        'val/images',
-        'val/labelTxt'
-    ]
-
-    print("\nVerifying dataset structure...")
-    all_exist = True
-
-    for req_dir in required_dirs:
-        full_path = dataset_path / req_dir
-        if full_path.exists():
-            file_count = len(list(full_path.glob('*')))
-            print(f"  ✓ {req_dir}: {file_count} files")
-        else:
-            print(f"  ✗ {req_dir}: NOT FOUND")
-            all_exist = False
-
-    return all_exist
-
-if __name__ == '__main__':
-    # Get target directory from command line or use default
-    target = sys.argv[1] if len(sys.argv) > 1 else 'dataset/DOTA'
-
-    # Download
-    success = download_dota_sdk(target)
-
-    if success:
-        # Verify
-        if verify_dataset(target):
-            print("\n" + "="*50)
-            print("✓ Dataset ready for splitting!")
-            print("="*50)
-            print("\nNext step:")
-            print("  bash scripts/setupcloud.sh")
-            sys.exit(0)
-        else:
-            print("\n✗ Dataset structure incomplete")
-            sys.exit(1)
-    else:
+if __name__ == "__main__":
+    target = sys.argv[1] if len(sys.argv) > 1 else "dataset/DOTA"
+    if not download_dota_sdk(target):
         sys.exit(1)
+
+    status = normalize_download_layout(target)
+    if status.ready:
+        print("Dataset ready for splitting.")
+        sys.exit(0)
+
+    print("Dataset structure incomplete:")
+    for error in status.errors:
+        print(f"- {error}")
+    sys.exit(1)
