@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """MSDYOLO 的真实 YOLOv5-OBB 训练入口。"""
 
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
 
