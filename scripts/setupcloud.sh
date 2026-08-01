@@ -36,49 +36,18 @@ pip install -q -r requirements.txt
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
 # Step 3: Download DOTA v1.5 dataset
-echo -e "\n${YELLOW}[3/6] Downloading DOTA v1.5 dataset...${NC}"
+echo -e "\n${YELLOW}[3/5] Downloading DOTA v1.5 dataset...${NC}"
 if [ -d "$DATASET_DIR/train" ] && [ -d "$DATASET_DIR/val" ]; then
     echo -e "${GREEN}✓ Dataset already exists, skipping download${NC}"
 else
-    echo "Downloading DOTA v1.5 from official source..."
-    echo "This will download ~2.5GB (train + val)"
-    echo ""
-
-    mkdir -p "$DATASET_DIR/raw"
-    cd "$DATASET_DIR/raw"
-
-    # Download train set (part1 + part2 + part3)
-    echo "Downloading train set (part 1/3)..."
-    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/train-part1.zip || {
-        echo -e "${RED}Failed to download train-part1.zip${NC}"
-        echo "Please manually download from: https://captain-whu.github.io/DOTA/dataset.html"
+    echo "Using OpenDataLab SDK to download DOTA v1.5..."
+    python3 scripts/download_dota.py "$DATASET_DIR" || {
+        echo -e "${RED}Download failed${NC}"
+        echo "Alternative: manually download from https://captain-whu.github.io/DOTA/dataset.html"
+        echo "Then place files in: $DATASET_DIR"
         exit 1
     }
-
-    echo "Downloading train set (part 2/3)..."
-    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/train-part2.zip
-
-    echo "Downloading train set (part 3/3)..."
-    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/train-part3.zip
-
-    # Download val set
-    echo "Downloading val set..."
-    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/val-part1.zip
-
-    # Extract all
-    echo "Extracting archives..."
-    unzip -q train-part1.zip
-    unzip -q train-part2.zip
-    unzip -q train-part3.zip
-    unzip -q val-part1.zip
-
-    # Organize directory structure
-    cd ../../..
-    mv "$DATASET_DIR/raw/train" "$DATASET_DIR/"
-    mv "$DATASET_DIR/raw/val" "$DATASET_DIR/"
-    rm -rf "$DATASET_DIR/raw"
-
-    echo -e "${GREEN}✓ Dataset downloaded and extracted${NC}"
+    echo -e "${GREEN}✓ Dataset downloaded${NC}"
 fi
 
 # Step 4: Split large images
