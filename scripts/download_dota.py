@@ -34,11 +34,10 @@ def download_dota_sdk(target_dir='dataset/DOTA'):
 
     # Download dataset
     try:
-        print("Starting download (this may take 10-30 minutes)...")
+        print("Starting download (this may take 30-60 minutes)...")
         download(
             dataset_repo='OpenDataLab/DOTA_V1_dot_5',
-            target_path=str(target_path),
-            timeout=3600  # 1 hour timeout
+            target_path=str(target_path)
         )
         print("\n✓ Download complete!")
         return True
