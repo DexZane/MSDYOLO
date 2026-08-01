@@ -1,0 +1,32 @@
+# MSDYOLO Baseline Training Configuration
+# Pure detection training without degradation or distillation
+
+experiment:
+  name: "baseline-detector"
+  description: "Baseline DOTA-OBB detector training"
+  phase: 2
+
+training:
+  data: "msdyolo/data/dota.yaml"
+  cfg: "configs/models/yolov5s.yaml"
+  weights: "yolov5s.pt"
+  epochs: 200
+  batchsize: 16
+  imagesize: 1024
+  device: "0"
+  workers: 4  # Reduced to prevent deadlock
+  hyp: "msdyolo/data/hyps/obb/hyp.finetune_dota.yaml"
+
+degradation:
+  enabled: false
+
+clearbranch:
+  enabled: false
+
+distillation:
+  enabled: false
+
+profiling:
+  enabled: false
+
+ablationmode: "baseline"

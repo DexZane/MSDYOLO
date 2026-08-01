@@ -1,0 +1,48 @@
+experiment:
+  name: baseline
+  description: Original YOLOv5-OBB baseline
+  phase: 1
+training:
+  data: data/dota-test.yaml
+  cfg: models/yolov5s.yaml
+  weights: ''
+  epochs: 50
+  batchsize: 2
+  imagesize: 320
+  device: cpu
+  workers: 0
+  hyp: data/hyps/obb/hyp.finetune_dota.yaml
+degradation:
+  enabled: false
+  psf:
+    enabled: false
+    kernelsize: 5
+    sigma: 1.0
+  downsample:
+    enabled: false
+    scale: 2.0
+  noise:
+    enabled: false
+    type: gaussian
+    level: 0.01
+  upsamplemode: bilinear
+  seed: 42
+clearbranch:
+  enabled: false
+  strategy: evalmode
+  extractsparse: true
+  topk: 300
+  confidencethreshold: 0.25
+distillation:
+  enabled: false
+  alpha: 0.1
+  matchiouthreshold: 0.5
+  losstype: l1
+  angleweight: null
+  detectabilityweight: null
+profiling:
+  enabled: false
+  loginterval: 100
+  savestats: true
+  outputdir: runs/profiling
+ablationmode: baseline

@@ -8,63 +8,32 @@ __pycache__/
 dist/
 build/
 
-# PyTorch
-*.pth
+# Training
+runs/
+wandb/
+*.weights
 *.pt
-*.ckpt
+*.pth
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
+# Data
+dataset/
+data/examples/
 
-# IDE
+# Logs
+*.log
+.archive/
+
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Training outputs
-runs/
-wandb/
-*.log
-*.cache
-
-# Data
-datasets/
-data/DOTA/
-data/HRSC2016/
-*.zip
-*.tar.gz
-
-# Temporary
-tmp/
-temp/
-*.tmp
-*_old.py
-*_backup.py
-
-# Config backups
-*.yaml.bak
-
-# Project documentation (not for GitHub)
-docs/p*.md
-docs/*-report*.md
-docs/*-summary.md
-*_diagnosis.log
-*_diagnostic.log
-*_verification.log
-diagnose_*.py
-quick_diagnose.py
-README_original.md
-
-# Large files
-*.ttf
-yolov5s.pt
-
-# External tools
-DOTA_devkit/
+# Cache
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

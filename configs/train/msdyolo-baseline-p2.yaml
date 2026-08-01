@@ -1,0 +1,33 @@
+# MSDYOLO Baseline 配置：纯检测训练（无退化、无蒸馏）
+# 用途：训练收敛的DOTA-OBB检测器，为后续蒸馏提供良好的初始权重
+
+experiment:
+  name: "baseline-detector"
+  description: "Baseline DOTA-OBB detector training without degradation or distillation"
+  phase: 2
+
+training:
+  data: "data/dotav15_poly.yaml"
+  cfg: "models/yolov5s.yaml"
+  weights: "yolov5s.pt"  # COCO预训练权重
+  epochs: 200
+  batchsize: 16  # GPU调整：V100可用32，4GB GPU用8
+  imagesize: 1024  # DOTA标准尺寸
+  device: "0"  # 单GPU，多GPU用"0,1,2,3"
+  workers: 8
+  hyp: "data/hyps/obb/hyp.finetune_dota.yaml"
+
+# 关键：关闭所有MSDYOLO特性
+degradation:
+  enabled: false
+
+clearbranch:
+  enabled: false
+
+distillation:
+  enabled: false
+
+profiling:
+  enabled: false
+
+ablationmode: "baseline"  # 纯baseline模式

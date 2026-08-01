@@ -1,0 +1,27 @@
+# DOTA v1.5 Dataset Configuration for Oriented Object Detection
+
+path: dataset/DOTA/split
+train: train/images
+val: val/images
+test: test_split_1024/images  # Optional
+
+# Classes
+nc: 16
+names: [
+  'plane',
+  'baseball-diamond',
+  'bridge',
+  'ground-track-field',
+  'small-vehicle',
+  'large-vehicle',
+  'ship',
+  'tennis-court',
+  'basketball-court',
+  'storage-tank',
+  'soccer-ball-field',
+  'roundabout',
+  'harbor',
+  'swimming-pool',
+  'helicopter',
+  'container-crane'
+]
