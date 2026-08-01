@@ -136,14 +136,14 @@ def split_single_image(args):
                 with open(label_path_out, 'w') as f:
                     for obj in patch_objects:
                         # Normalize coordinates to [0, 1]
-                        x1_norm = obj['x1'] / subsize
-                        y1_norm = obj['y1'] / subsize
-                        x2_norm = obj['x2'] / subsize
-                        y2_norm = obj['y2'] / subsize
-                        x3_norm = obj['x3'] / subsize
-                        y3_norm = obj['y3'] / subsize
-                        x4_norm = obj['x4'] / subsize
-                        y4_norm = obj['y4'] / subsize
+                        x1_norm = max(0.0, min(1.0, obj['x1'] / subsize))
+                        y1_norm = max(0.0, min(1.0, obj['y1'] / subsize))
+                        x2_norm = max(0.0, min(1.0, obj['x2'] / subsize))
+                        y2_norm = max(0.0, min(1.0, obj['y2'] / subsize))
+                        x3_norm = max(0.0, min(1.0, obj['x3'] / subsize))
+                        y3_norm = max(0.0, min(1.0, obj['y3'] / subsize))
+                        x4_norm = max(0.0, min(1.0, obj['x4'] / subsize))
+                        y4_norm = max(0.0, min(1.0, obj['y4'] / subsize))
 
                         # YOLOv5-OBB format: x1 y1 x2 y2 x3 y3 x4 y4 class difficult
                         f.write(f"{x1_norm:.6f} {y1_norm:.6f} "
