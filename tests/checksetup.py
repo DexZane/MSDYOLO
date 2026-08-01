@@ -12,6 +12,18 @@ def writefakepython(path: Path) -> None:
     path.write_text(
         "#!/bin/sh\n"
         "printf '%s\\n' \"$*\" >> \"$SETUP_CALL_LOG\"\n"
+        "if [ \"$1\" = -c ]; then\n"
+        "    case \"$2\" in\n"
+        "        *urlretrieve*)\n"
+        "            printf checkpoint > \"$4\"\n"
+        "            exit 0\n"
+        "            ;;\n"
+        "        *torch.load*)\n"
+        "            [ \"${SETUP_FAKE_WEIGHTS:-valid}\" = valid ]\n"
+        "            exit\n"
+        "            ;;\n"
+        "    esac\n"
+        "fi\n"
         "exit 0\n",
         encoding="utf-8",
     )
@@ -23,23 +35,6 @@ def writefakepkill(path: Path) -> None:
         "#!/bin/sh\n"
         "printf 'pkill %s\\n' \"$*\" >> \"$SETUP_CALL_LOG\"\n"
         "exit 0\n",
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-
-
-def writefakecurl(path: Path) -> None:
-    path.write_text(
-        "#!/bin/sh\n"
-        "printf 'curl %s\\n' \"$*\" >> \"$SETUP_CALL_LOG\"\n"
-        "while [ \"$#\" -gt 0 ]; do\n"
-        "    if [ \"$1\" = -o ]; then\n"
-        "        printf weights > \"$2\"\n"
-        "        exit 0\n"
-        "    fi\n"
-        "    shift\n"
-        "done\n"
-        "exit 2\n",
         encoding="utf-8",
     )
     path.chmod(0o755)
@@ -65,7 +60,6 @@ def setupskeleton(tmp_path: Path, weights: bool = True) -> tuple[Path, dict[str,
     fakepython = binaries / "python"
     writefakepython(fakepython)
     writefakepkill(binaries / "pkill")
-    writefakecurl(binaries / "curl")
     calls = tmp_path / "calls.txt"
     environment = os.environ | {
         "PYTHON_BIN": str(fakepython),
@@ -127,10 +121,32 @@ class CheckSetup:
 
         assert result.returncode == 0, result.stderr
         recorded = calls.read_text(encoding="utf-8").splitlines()
-        curlindex = next(index for index, line in enumerate(recorded) if line.startswith("curl "))
+        downloadindex = next(index for index, line in enumerate(recorded) if "urlretrieve" in line)
+        validationindex = next(index for index, line in enumerate(recorded) if "torch.load" in line)
         trainindex = recorded.index("-m msdyolo.train --config configs/train/full.yaml")
-        assert curlindex < trainindex
-        assert (project / "yolov5s.pt").read_bytes() == b"weights"
+        assert downloadindex < validationindex < trainindex
+        assert (project / "yolov5s.pt").read_bytes() == b"checkpoint"
+
+    def checkinvaliddownloadedweightsarerejectedandremoved(self, tmp_path: Path):
+        project, environment, calls = setupskeleton(tmp_path, weights=False)
+        environment["SETUP_FAKE_WEIGHTS"] = "invalid"
+
+        result = subprocess.run(
+            ["bash", "scripts/setup.sh", "--foreground"],
+            cwd=project,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 1
+        assert "invalid pretrained weights" in result.stderr
+        assert not (project / "yolov5s.pt").exists()
+        assert not list(project.glob("yolov5s.pt.download.*"))
+        assert not any(
+            line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines()
+        )
 
     def checkdefaultlaunchusesfullconfigandforceflagonlywhenrequested(self, tmp_path: Path):
         project, environment, calls = setupskeleton(tmp_path)
@@ -179,7 +195,7 @@ class CheckSetup:
             sleeper.terminate()
             sleeper.wait(timeout=5)
 
-    def checkprepareonlycanrunwhiletrainingpidisstilllive(self, tmp_path: Path):
+    def checkprepareonlyrefuseslivepidbeforepreparation(self, tmp_path: Path):
         project, environment, calls = setupskeleton(tmp_path)
         sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
         try:
@@ -196,12 +212,10 @@ class CheckSetup:
                 check=False,
             )
 
-            assert result.returncode == 0, result.stderr
+            assert result.returncode == 1
+            assert str(sleeper.pid) in result.stderr
             assert sleeper.poll() is None
-            assert any(
-                line.startswith("-m msdyolo.data.scripts.prepare_dota ")
-                for line in calls.read_text().splitlines()
-            )
+            assert not calls.exists()
         finally:
             sleeper.terminate()
             sleeper.wait(timeout=5)

@@ -119,30 +119,36 @@ writepid() {
 
 downloadweights() {
     if [[ -s "$WEIGHTS_FILE" ]]; then
-        return
+        if validateweights "$WEIGHTS_FILE"; then
+            return
+        fi
+        echo "error: invalid pretrained weights: $WEIGHTS_FILE" >&2
+        exit 1
     fi
     mkdir -p "$(dirname "$WEIGHTS_FILE")"
     WEIGHTS_TMP="$(mktemp "${WEIGHTS_FILE}.download.XXXXXX")"
     echo "Downloading pretrained yolov5s weights..."
-    if ! curl --fail --location --retry 3 --retry-delay 2 -o "$WEIGHTS_TMP" "$WEIGHTS_URL"; then
+    if ! "$PYTHON_BIN" -c 'from urllib.request import urlretrieve; import sys; urlretrieve(sys.argv[1], sys.argv[2])' "$WEIGHTS_URL" "$WEIGHTS_TMP"; then
         rm -f "$WEIGHTS_TMP"
         echo "error: failed to download pretrained weights from $WEIGHTS_URL" >&2
         exit 1
     fi
-    if [[ ! -s "$WEIGHTS_TMP" ]]; then
+    if [[ ! -s "$WEIGHTS_TMP" ]] || ! validateweights "$WEIGHTS_TMP"; then
         rm -f "$WEIGHTS_TMP"
-        echo "error: downloaded pretrained weights are empty: $WEIGHTS_URL" >&2
+        echo "error: invalid pretrained weights from $WEIGHTS_URL" >&2
         exit 1
     fi
     mv -f "$WEIGHTS_TMP" "$WEIGHTS_FILE"
 }
 
+validateweights() {
+    "$PYTHON_BIN" -c 'import sys, torch; checkpoint = torch.load(sys.argv[1], map_location="cpu", weights_only=False); assert checkpoint is not None' "$1"
+}
+
 cd "$PROJECT_DIR"
 
 acquirelaunchlock
-if [[ "$PREPARE_ONLY" == false ]]; then
-    checkexistingtraining
-fi
+checkexistingtraining
 
 echo "Installing cloud dependencies..."
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
