@@ -18,7 +18,7 @@ from msdyolo.utils.config import MSDYOLOConfig
 
 def training_health_message(distillation_enabled: bool, epoch_matches: int, target_count: int) -> str | None:
     """返回仅适用于蒸馏训练的零匹配 epoch 健康警告。"""
-    if not distillation_enabled or target_count == 0 or epoch_matches != 0:
+    if not distillation_enabled or target_count <= 0 or epoch_matches != 0:
         return None
     return (
         "Warning: distillation received targets="

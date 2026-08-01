@@ -21,6 +21,10 @@ class CheckTrainingHealth:
         """没有 epoch 目标时，零匹配不表示蒸馏健康问题。"""
         assert training_health_message(True, 0, 0) is None
 
+    def checkdistillationzeromatcheswithnegativetargetsremainssilent(self):
+        """无效的负目标计数不应触发仅适用于正目标的健康警告。"""
+        assert training_health_message(True, 0, -1) is None
+
     def checkdistillationmatchesremainssilent(self):
         """只要 epoch 中存在匹配，就不应发出零匹配警告。"""
         assert training_health_message(True, 1, 10) is None
