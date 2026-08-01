@@ -185,7 +185,10 @@ def _validate_output_path(dataset_dir: Path, split_dir: Path) -> None:
     raw_roots = ((dataset_dir / "train").resolve(), (dataset_dir / "val").resolve())
     replaces_dataset = split_dir == dataset_dir or split_dir in dataset_dir.parents
     overlaps_raw_split = any(
-        split_dir == root or split_dir.is_relative_to(root) for root in raw_roots
+        split_dir == root
+        or split_dir.is_relative_to(root)
+        or split_dir in root.parents
+        for root in raw_roots
     )
     if replaces_dataset or overlaps_raw_split:
         raise ValueError(

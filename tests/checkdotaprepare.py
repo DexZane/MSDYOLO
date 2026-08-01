@@ -106,6 +106,27 @@ class CheckDotaPrepare:
         assert not (dataset / "val" / "labelTxt").exists()
         assert not list(tmp_path.parent.glob(".split-candidate-*"))
 
+    def checkresolvedrawrootancestorrejectsbeforemutation(self, tmp_path: Path):
+        dataset = writerawdataset(tmp_path)
+        externalroot = tmp_path / "mountedraw"
+        externalroot.mkdir()
+        target = externalroot / "train"
+        (dataset / "train").rename(target)
+        (dataset / "train").symlink_to(target, target_is_directory=True)
+        before = treebytes(externalroot)
+        calls = []
+
+        def forbidden(*args):
+            calls.append(args)
+            raise AssertionError("splitter must not run for raw-root ancestor")
+
+        with pytest.raises(ValueError, match="unsafe.*output"):
+            prepare_dataset(dataset, externalroot, 16, 2, 1, splitter=forbidden)
+
+        assert calls == []
+        assert treebytes(externalroot) == before
+        assert not (dataset / "val" / "labelTxt").exists()
+
     def checksafedatasetchildoutputremainsallowed(self, tmp_path: Path):
         dataset = writerawdataset(tmp_path)
         output = dataset / "split"
