@@ -35,29 +35,54 @@ echo -e "\n${YELLOW}[2/6] Installing dependencies...${NC}"
 pip install -q -r requirements.txt
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
-# Step 3: Install OpenDataLab CLI
-echo -e "\n${YELLOW}[3/6] Installing OpenDataLab CLI...${NC}"
-pip install -q openxlab
-echo -e "${GREEN}✓ OpenDataLab CLI installed${NC}"
-
-# Step 4: Download DOTA v1.5 dataset
-echo -e "\n${YELLOW}[4/6] Downloading DOTA v1.5 dataset...${NC}"
+# Step 3: Download DOTA v1.5 dataset
+echo -e "\n${YELLOW}[3/6] Downloading DOTA v1.5 dataset...${NC}"
 if [ -d "$DATASET_DIR/train" ] && [ -d "$DATASET_DIR/val" ]; then
     echo -e "${GREEN}✓ Dataset already exists, skipping download${NC}"
 else
-    echo "This will download ~3GB of data. Please ensure you have logged in to OpenDataLab:"
-    echo "  openxlab login"
+    echo "Downloading DOTA v1.5 from official source..."
+    echo "This will download ~2.5GB (train + val)"
     echo ""
-    read -p "Press Enter to continue or Ctrl+C to cancel..."
 
-    mkdir -p "$DATASET_DIR"
-    openxlab dataset download --dataset-repo "$DOTA_DATASET_REPO" --target-path "$DATASET_DIR"
+    mkdir -p "$DATASET_DIR/raw"
+    cd "$DATASET_DIR/raw"
 
-    echo -e "${GREEN}✓ Dataset downloaded${NC}"
+    # Download train set (part1 + part2 + part3)
+    echo "Downloading train set (part 1/3)..."
+    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/train-part1.zip || {
+        echo -e "${RED}Failed to download train-part1.zip${NC}"
+        echo "Please manually download from: https://captain-whu.github.io/DOTA/dataset.html"
+        exit 1
+    }
+
+    echo "Downloading train set (part 2/3)..."
+    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/train-part2.zip
+
+    echo "Downloading train set (part 3/3)..."
+    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/train-part3.zip
+
+    # Download val set
+    echo "Downloading val set..."
+    wget -q --show-progress https://captain-whu.github.io/DOTA/dataset/val-part1.zip
+
+    # Extract all
+    echo "Extracting archives..."
+    unzip -q train-part1.zip
+    unzip -q train-part2.zip
+    unzip -q train-part3.zip
+    unzip -q val-part1.zip
+
+    # Organize directory structure
+    cd ../../..
+    mv "$DATASET_DIR/raw/train" "$DATASET_DIR/"
+    mv "$DATASET_DIR/raw/val" "$DATASET_DIR/"
+    rm -rf "$DATASET_DIR/raw"
+
+    echo -e "${GREEN}✓ Dataset downloaded and extracted${NC}"
 fi
 
-# Step 5: Split large images
-echo -e "\n${YELLOW}[5/6] Splitting images (4000x4000 → 1024x1024 patches)...${NC}"
+# Step 4: Split large images
+echo -e "\n${YELLOW}[4/6] Splitting images (4000x4000 → 1024x1024 patches)...${NC}"
 if [ -d "$SPLIT_DIR" ] && [ "$(ls -A $SPLIT_DIR)" ]; then
     echo -e "${GREEN}✓ Split images already exist, skipping${NC}"
 else
@@ -92,8 +117,8 @@ else
     echo -e "${GREEN}✓ Image splitting complete${NC}"
 fi
 
-# Step 6: Verify setup
-echo -e "\n${YELLOW}[6/6] Verifying setup...${NC}"
+# Step 5: Verify setup
+echo -e "\n${YELLOW}[5/6] Verifying setup...${NC}"
 
 # Check if split images exist
 TRAIN_IMAGES=$(find "$SPLIT_DIR/train/images" -name "*.png" 2>/dev/null | wc -l)
