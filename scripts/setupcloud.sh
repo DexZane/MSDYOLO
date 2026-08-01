@@ -58,14 +58,14 @@ else
     mkdir -p "$SPLIT_DIR"
 
     # Check if split script exists
-    if [ ! -f "utils/ImgSplit_multi_process.py" ]; then
-        echo -e "${RED}Error: ImgSplit_multi_process.py not found in utils/${NC}"
+    if [ ! -f "utils/imgsplit.py" ]; then
+        echo -e "${RED}Error: imgsplit.py not found in utils/${NC}"
         exit 1
     fi
 
     # Split train set
     echo "Splitting train set..."
-    python3 utils/ImgSplit_multi_process.py \
+    python3 utils/imgsplit.py \
         --imageset "$DATASET_DIR/train/images" \
         --labelset "$DATASET_DIR/train/labelTxt" \
         --output "$SPLIT_DIR/train" \
@@ -75,7 +75,7 @@ else
 
     # Split val set
     echo "Splitting val set..."
-    python3 utils/ImgSplit_multi_process.py \
+    python3 utils/imgsplit.py \
         --imageset "$DATASET_DIR/val/images" \
         --labelset "$DATASET_DIR/val/labelTxt" \
         --output "$SPLIT_DIR/val" \
