@@ -37,6 +37,7 @@ def download_dota_sdk(target_dir='dataset/DOTA'):
         print("Starting download (this may take 30-60 minutes)...")
         download(
             dataset_repo='OpenDataLab/DOTA_V1_dot_5',
+            source_path='/README.md',
             target_path=str(target_path)
         )
         print("\n✓ Download complete!")
