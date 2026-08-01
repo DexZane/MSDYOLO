@@ -142,7 +142,7 @@ downloadweights() {
 }
 
 validateweights() {
-    "$PYTHON_BIN" -c 'import sys, torch; checkpoint = torch.load(sys.argv[1], map_location="cpu", weights_only=False); assert checkpoint is not None' "$1"
+    "$PYTHON_BIN" -c 'from collections.abc import Mapping; import sys, torch; checkpoint = torch.load(sys.argv[1], map_location="cpu", weights_only=False); wrapped = isinstance(checkpoint, Mapping) and "model" in checkpoint; candidate = checkpoint["model"] if wrapped else checkpoint; state = candidate.float().state_dict() if wrapped and hasattr(candidate, "float") else candidate; assert (not wrapped or hasattr(candidate, "float") or isinstance(candidate, Mapping)) and isinstance(state, Mapping) and state and all(isinstance(key, str) and isinstance(value, torch.Tensor) for key, value in state.items())' "$1"
 }
 
 cd "$PROJECT_DIR"

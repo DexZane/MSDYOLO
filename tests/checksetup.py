@@ -4,6 +4,8 @@ import shutil
 import subprocess
 import sys
 
+import torch
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -13,6 +15,9 @@ def writefakepython(path: Path) -> None:
         "#!/bin/sh\n"
         "printf '%s\\n' \"$*\" >> \"$SETUP_CALL_LOG\"\n"
         "if [ \"$1\" = -c ]; then\n"
+        "    if [ \"${SETUP_REAL_VALIDATOR:-false}\" = true ] && echo \"$2\" | grep -q torch.load; then\n"
+        "        exec \"$SETUP_REAL_PYTHON\" \"$@\"\n"
+        "    fi\n"
         "    case \"$2\" in\n"
         "        *urlretrieve*)\n"
         "            printf checkpoint > \"$4\"\n"
@@ -147,6 +152,45 @@ class CheckSetup:
         assert not any(
             line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines()
         )
+
+    def checkmalformedserializedweightsarerejectedbeforetraining(self, tmp_path: Path):
+        project, environment, calls = setupskeleton(tmp_path)
+        torch.save({"foo": "bar"}, project / "yolov5s.pt")
+        environment["SETUP_REAL_VALIDATOR"] = "true"
+        environment["SETUP_REAL_PYTHON"] = sys.executable
+
+        result = subprocess.run(
+            ["bash", "scripts/setup.sh", "--foreground"],
+            cwd=project,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 1
+        assert "invalid pretrained weights" in result.stderr
+        assert not any(
+            line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines()
+        )
+
+    def checkmodelstatemappingcheckpointisaccepted(self, tmp_path: Path):
+        project, environment, calls = setupskeleton(tmp_path)
+        torch.save({"model": {"weight": torch.ones(1)}}, project / "yolov5s.pt")
+        environment["SETUP_REAL_VALIDATOR"] = "true"
+        environment["SETUP_REAL_PYTHON"] = sys.executable
+
+        result = subprocess.run(
+            ["bash", "scripts/setup.sh", "--foreground"],
+            cwd=project,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert "-m msdyolo.train --config configs/train/full.yaml" in calls.read_text().splitlines()
 
     def checkdefaultlaunchusesfullconfigandforceflagonlywhenrequested(self, tmp_path: Path):
         project, environment, calls = setupskeleton(tmp_path)
