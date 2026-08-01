@@ -365,9 +365,9 @@ git commit -m "fix: align cloud config with full MSD training"
 - Runtime files: `runs/setup/training.pid` and `training.log`.
 - Consumes: `download_dota`, `prepare_dota`, `configs/train/full.yaml`, and `python -m msdyolo.train`.
 
-- [ ] **Step 1: Write failing setup contract tests**
+- [ ] **Step 1: Write failing setup behavior tests**
 
-Run `bash scripts/setup.sh --help` in a subprocess and assert exit 0 with all four flags. Read the script and assert it contains `python3 -m pip` or a computed Python command followed by `-m pip`, invokes both package data modules, defaults to `configs/train/full.yaml`, and does not contain `pkill`. Run `bash -n scripts/setup.sh` from the test and require exit 0.
+Run `bash scripts/setup.sh --help` in a subprocess and assert exit 0 with all four flags. For execution behavior, copy the script into a temporary project skeleton, provide a fake `PYTHON_BIN` executable that records each invocation, pre-create the minimum dataset/weight paths, and run `--prepare-only`. Assert the recorded calls install setuptools before the editable package and OpenDataLab, invoke the downloader/preparer through `-m`, use `configs/train/full.yaml`, and never invoke a process-killing command. Add a second controlled run whose PID file points to a live subprocess; assert setup exits nonzero without terminating it. Run `bash -n scripts/setup.sh` from the test and require exit 0.
 
 - [ ] **Step 2: Run setup tests and verify RED**
 
@@ -445,7 +445,7 @@ git commit -m "fix: make cloud setup safe and idempotent"
 
 - [ ] **Step 1: Write failing canonical import tests**
 
-Assert all eight module and root CLI help commands exit 0. Walk project-owned Python files outside `docs/archive` and fail on `from models`, `from utils`, `import models`, or `import utils`. Assert root `models` and `utils` paths do not exist. These assertions intentionally fail before migration.
+Assert all eight module and root CLI help commands exit 0. In isolated subprocesses import representative model, dataset, trainer, matching, rotated-NMS, detect, export, and validation symbols, then assert their resolved `__file__` paths live below the `msdyolo` package. Exercise one model construction and one dataset-path conversion so the tests prove real consumers use the package implementation. These assertions intentionally fail before migration because the root commands still bind the legacy trees.
 
 - [ ] **Step 2: Run canonical tests and verify RED**
 
@@ -522,41 +522,34 @@ git commit -m "refactor: use one canonical msdyolo package"
 - Modify: `scripts/ddp_train.sh`
 - Modify: `tests/checkall.py`
 - Modify: `tests/checknaming.py`
-- Create: `tests/checkrepositorylayout.py`
 
 **Interfaces:**
 - Exactly one current setup, downloader, splitter, package tree, dataset YAML set, and training config set remain.
 - Historical material remains readable under `docs/archive/` and is excluded from current-path tests.
 
-- [ ] **Step 1: Write failing layout assertions**
+- [ ] **Step 1: Record the pre-cleanup tracked-layout audit**
 
-Assert obsolete scripts and duplicate YAML paths do not exist, archive files do exist, and the fixture data config resolves to `tests/fixtures/dota`. Assert `scripts/verify.sh` is not mentioned in the deletion list and, if present, remains readable.
+Run `git ls-files` with exact filters for root `models/`, root `utils/`, duplicate root YAML, obsolete scripts, history files, and `data/dota-test/labelTxt.cache`. Save the output in the task report as the RED evidence: these tracked paths contradict the approved target structure. Confirm separately that `scripts/verify.sh` is untracked and absent from the index.
 
-- [ ] **Step 2: Run layout tests and verify RED**
-
-Run: `pytest -q tests/checkrepositorylayout.py`
-
-Expected: failures enumerate the legacy paths still present.
-
-- [ ] **Step 3: Move historical and fixture files**
+- [ ] **Step 2: Move historical and fixture files**
 
 Use `git mv` for tracked history files and fixtures. Remove the tracked `data/dota-test/labelTxt.cache`; caches are generated artifacts. Update test fixture YAML and every test reference before removing root data.
 
-- [ ] **Step 4: Delete only confirmed duplicate or obsolete tracked files**
+- [ ] **Step 3: Delete only confirmed duplicate or obsolete tracked files**
 
 Compare each duplicate YAML before deletion. Preserve unique current data under `msdyolo/data/`. Do not touch the ignored `dataset/` download tree or untracked `scripts/verify.sh`.
 
-- [ ] **Step 5: Update DDP and naming checks**
+- [ ] **Step 4: Update DDP and naming checks**
 
 Change DDP commands to package entry points and canonical config/data paths. Make naming checks scan current source/config/test directories while excluding `docs/archive`.
 
-- [ ] **Step 6: Verify GREEN**
+- [ ] **Step 5: Verify behavior and the target layout**
 
-Run: `pytest -q tests/checkrepositorylayout.py tests/checkall.py tests/checknaming.py`
+Run: `pytest -q tests/checkall.py tests/checknaming.py tests/checkcanonicalimports.py`
 
-Expected: all repository structure tests pass.
+Expected: all current behavior/import tests pass. Repeat the exact `git ls-files` filters from Step 1 and require no obsolete live paths; require the four archive destinations and the fixture data config to be tracked. This is a delivery audit, not a permanent source-text test.
 
-- [ ] **Step 7: Commit Task 7**
+- [ ] **Step 6: Commit Task 7**
 
 ```bash
 git add -A .old_structure README_old.md README_original.md RESTRUCTURE_PLAN.md data configs docs/archive tests msdyolo/data
@@ -583,15 +576,15 @@ Before committing, inspect `git status --short` and confirm `scripts/verify.sh` 
 - Installed distribution includes YAML configs and NMS extension source assets required from `msdyolo/`.
 - Metadata license matches the repository GPL-3.0 license.
 
-- [ ] **Step 1: Write failing metadata and documentation tests**
+- [ ] **Step 1: Write failing packaging behavior tests**
 
-Assert setup metadata contains all four console scripts, GPL license metadata, and package data rules for YAML. Scan current README/GetStart/install docs and fail on removed paths such as `utils/imgsplit.py`, `data/dotav15_poly.yaml`, `configs/msdyolo-`, `setupcloud.sh`, and direct root implementation claims.
+Build a wheel into a temporary output directory, inspect its standard metadata and archive member list, and install it into a temporary virtual environment. Assert the installed distribution reports GPL metadata, contains package YAML/NMS assets, exposes all four console scripts, and each script's `--help` exits 0. Record the pre-change failures as RED evidence. Human-facing README/GetStart/install prose receives a one-time path audit rather than a permanent text assertion.
 
 - [ ] **Step 2: Run packaging tests and verify RED**
 
 Run: `pytest -q tests/checkpackaging.py`
 
-Expected: failures show missing console scripts, incorrect MIT classifier, and stale documentation paths.
+Expected: failures show missing console scripts, incorrect MIT classifier, or missing installed package data.
 
 - [ ] **Step 3: Update packaging metadata**
 
