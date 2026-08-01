@@ -28,7 +28,8 @@ def download_dota_sdk(target_dir='dataset/DOTA'):
     print(f"{'='*50}")
     print(f"Target: {target_path.absolute()}")
     print(f"Source: OpenDataLab/DOTA_V1_dot_5")
-    print(f"Size: ~2.5GB")
+    print(f"Size: ~18-20GB (full dataset)")
+    print(f"Time: ~30-60 minutes depending on network")
     print(f"{'='*50}\n")
 
     # Download dataset
