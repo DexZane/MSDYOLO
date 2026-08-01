@@ -35,7 +35,7 @@ while (($#)); do
             FOREGROUND=true
             ;;
         --config)
-            if (($# < 2)); then
+            if (($# < 2)) || [[ "$2" == -* ]]; then
                 echo "error: --config requires a path" >&2
                 exit 2
             fi
@@ -61,9 +61,88 @@ DATASET_DIR="$PROJECT_DIR/dataset/DOTA"
 SPLIT_DIR="$DATASET_DIR/split"
 RUN_DIR="$PROJECT_DIR/runs/setup"
 PID_FILE="$RUN_DIR/training.pid"
-LOG_FILE="$RUN_DIR/training.log"
+LOCK_DIR="$RUN_DIR/.launch.lock"
+LOG_FILE="$PROJECT_DIR/training.log"
+WEIGHTS_FILE="${WEIGHTS_FILE:-$PROJECT_DIR/yolov5s.pt}"
+WEIGHTS_URL="${WEIGHTS_URL:-https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5s.pt}"
+
+if [[ "$CONFIG" == /* ]]; then
+    CONFIG_PATH="$CONFIG"
+else
+    CONFIG_PATH="$PROJECT_DIR/$CONFIG"
+fi
+if [[ ! -f "$CONFIG_PATH" ]]; then
+    echo "error: config file not found: $CONFIG_PATH" >&2
+    exit 2
+fi
+
+releaselaunchlock() {
+    rm -f "$LOCK_DIR/owner.pid"
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+
+acquirelaunchlock() {
+    mkdir -p "$RUN_DIR"
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+        LOCK_OWNER=""
+        if [[ -f "$LOCK_DIR/owner.pid" ]]; then
+            LOCK_OWNER="$(tr -d '[:space:]' < "$LOCK_DIR/owner.pid")"
+        fi
+        if [[ "$LOCK_OWNER" =~ ^[0-9]+$ ]] && kill -0 "$LOCK_OWNER" 2>/dev/null; then
+            echo "error: setup is already preparing or launching training (PID: $LOCK_OWNER)" >&2
+        else
+            echo "error: setup launch lock exists at $LOCK_DIR; inspect and remove it after confirming no setup is active" >&2
+        fi
+        exit 1
+    fi
+    printf '%s\n' "$$" >"$LOCK_DIR/owner.pid"
+    trap releaselaunchlock EXIT
+}
+
+checkexistingtraining() {
+    if [[ ! -f "$PID_FILE" ]]; then
+        return
+    fi
+    EXISTING_PID="$(tr -d '[:space:]' < "$PID_FILE")"
+    if [[ "$EXISTING_PID" =~ ^[0-9]+$ ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
+        echo "error: training is already running (PID: $EXISTING_PID; log: $LOG_FILE)" >&2
+        exit 1
+    fi
+    rm -f "$PID_FILE"
+}
+
+writepid() {
+    PID_TMP="$(mktemp "$RUN_DIR/.training.pid.XXXXXX")"
+    printf '%s\n' "$1" >"$PID_TMP"
+    mv -f "$PID_TMP" "$PID_FILE"
+}
+
+downloadweights() {
+    if [[ -s "$WEIGHTS_FILE" ]]; then
+        return
+    fi
+    mkdir -p "$(dirname "$WEIGHTS_FILE")"
+    WEIGHTS_TMP="$(mktemp "${WEIGHTS_FILE}.download.XXXXXX")"
+    echo "Downloading pretrained yolov5s weights..."
+    if ! curl --fail --location --retry 3 --retry-delay 2 -o "$WEIGHTS_TMP" "$WEIGHTS_URL"; then
+        rm -f "$WEIGHTS_TMP"
+        echo "error: failed to download pretrained weights from $WEIGHTS_URL" >&2
+        exit 1
+    fi
+    if [[ ! -s "$WEIGHTS_TMP" ]]; then
+        rm -f "$WEIGHTS_TMP"
+        echo "error: downloaded pretrained weights are empty: $WEIGHTS_URL" >&2
+        exit 1
+    fi
+    mv -f "$WEIGHTS_TMP" "$WEIGHTS_FILE"
+}
 
 cd "$PROJECT_DIR"
+
+acquirelaunchlock
+if [[ "$PREPARE_ONLY" == false ]]; then
+    checkexistingtraining
+fi
 
 echo "Installing cloud dependencies..."
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
@@ -97,25 +176,18 @@ if [[ "$PREPARE_ONLY" == true ]]; then
     exit 0
 fi
 
-mkdir -p "$RUN_DIR"
-if [[ -f "$PID_FILE" ]]; then
-    EXISTING_PID="$(tr -d '[:space:]' < "$PID_FILE")"
-    if [[ "$EXISTING_PID" =~ ^[0-9]+$ ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
-        echo "error: training is already running (PID: $EXISTING_PID; log: $LOG_FILE)" >&2
-        exit 1
-    fi
-    rm -f "$PID_FILE"
-fi
+downloadweights
 
 if [[ "$FOREGROUND" == true ]]; then
+    writepid "$$"
+    releaselaunchlock
+    trap - EXIT
     exec "$PYTHON_BIN" -m msdyolo.train --config "$CONFIG"
 fi
 
 "$PYTHON_BIN" -m msdyolo.train --config "$CONFIG" >"$LOG_FILE" 2>&1 &
 TRAIN_PID=$!
-PID_TMP="$(mktemp "$RUN_DIR/.training.pid.XXXXXX")"
-printf '%s\n' "$TRAIN_PID" >"$PID_TMP"
-mv -f "$PID_TMP" "$PID_FILE"
+writepid "$TRAIN_PID"
 
 echo "Training started in the background (PID: $TRAIN_PID)."
 echo "Monitor: tail -f $LOG_FILE"
