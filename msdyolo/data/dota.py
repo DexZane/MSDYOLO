@@ -32,6 +32,19 @@ class DotaObject:
     difficult: int
 
 
+def is_degenerate_polygon(
+    coordinates: tuple[float, float, float, float, float, float, float, float]
+) -> bool:
+    """Return whether a quadrilateral has zero signed area."""
+    points = tuple(zip(coordinates[::2], coordinates[1::2]))
+    signed_area = sum(
+        xcurrent * ynext - xnext * ycurrent
+        for (xcurrent, ycurrent), (xnext, ynext) in zip(points, points[1:] + points[:1])
+    )
+    scale = max(1.0, *(abs(value) for value in coordinates))
+    return math.isclose(signed_area, 0.0, abs_tol=1e-12 * scale * scale)
+
+
 def parse_dota_label(path: Path) -> list[DotaObject]:
     """Parse strict ten-column DOTA v1.5 labels from *path*."""
     objects = []
@@ -65,6 +78,8 @@ def parse_dota_label(path: Path) -> list[DotaObject]:
             raise ValueError(f"{path}:{linenumber}: difficult must be 0, 1, or 2") from error
         if difficult not in {0, 1, 2}:
             raise ValueError(f"{path}:{linenumber}: difficult must be 0, 1, or 2")
+        if is_degenerate_polygon(coordinates):
+            raise ValueError(f"{path}:{linenumber}: degenerate polygon")
 
         objects.append(DotaObject(coordinates, classname, difficult))
     return objects

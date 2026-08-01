@@ -84,6 +84,8 @@ def validate_split_arguments(subsize: int, gap: int, num_process: int) -> None:
     """Validate split geometry and worker-count arguments."""
     if subsize <= 0:
         raise ValueError("subsize must be positive")
+    if subsize > 1024:
+        raise ValueError("subsize must not exceed 1024 for pixel labels")
     if gap < 0 or gap >= subsize:
         raise ValueError("gap must satisfy 0 <= gap < subsize")
     if num_process <= 0:

@@ -41,6 +41,19 @@ class CheckDotaLabels:
         with pytest.raises(ValueError, match=message):
             parse_dota_label(label)
 
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "10 10 10 10 10 10 10 10 ship 0",
+            "0 0 10 0 20 0 30 0 ship 0",
+        ],
+    )
+    def checkdegeneratepolygonsfail(self, tmp_path: Path, line: str):
+        label = tmp_path / "degenerate.txt"
+        label.write_text(line + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="degenerate polygon"):
+            parse_dota_label(label)
+
     def checksplitwritesclippedpixellabelstolabeltxt(self, tmp_path: Path):
         image = tmp_path / "image.png"
         assert cv2.imwrite(str(image), np.zeros((1200, 1200, 3), dtype=np.uint8))
@@ -66,6 +79,7 @@ class CheckDotaLabels:
             (1024, 1024, 1),
             (1024, -1, 1),
             (1024, 200, 0),
+            (1025, 200, 1),
         ],
     )
     def checksplitdatasetrejectsinvalidarguments(
