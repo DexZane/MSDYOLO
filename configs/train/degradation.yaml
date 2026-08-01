@@ -3,15 +3,15 @@ experiment:
   description: MSDYOLO with sensor degradation
   phase: 1
 training:
-  data: data/dota-test.yaml
-  cfg: models/yolov5s.yaml
-  weights: ''
-  epochs: 300
-  batchsize: 2
+  data: msdyolo/data/dota.yaml
+  cfg: configs/models/yolov5s.yaml
+  weights: yolov5s.pt
+  epochs: 200
+  batchsize: 16
   imagesize: 1024
   device: '0'
-  workers: 0
-  hyp: data/hyps/obb/hyp.finetune_dota.yaml
+  workers: 4
+  hyp: msdyolo/data/hyps/obb/hyp.finetune_dota.yaml
 degradation:
   enabled: true
   psf:
@@ -29,20 +29,8 @@ degradation:
   seed: 42
 clearbranch:
   enabled: false
-  strategy: evalmode
-  extractsparse: true
-  topk: 300
-  confidencethreshold: 0.25
 distillation:
   enabled: false
-  alpha: 0.1
-  matchiouthreshold: 0.5
-  losstype: l1
-  angleweight: null
-  detectabilityweight: null
 profiling:
   enabled: false
-  loginterval: 100
-  savestats: true
-  outputdir: runs/profiling
 ablationmode: withdegradation

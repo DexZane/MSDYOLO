@@ -2,7 +2,12 @@
 """配置验证单元测试。"""
 
 import pytest
+from pathlib import Path
+
 from utils.config import MSDYOLOConfig
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class CheckConfigValidation:
@@ -57,3 +62,7 @@ class CheckConfigValidation:
         config.set("clearbranch.enabled", False)
 
         assert not config.validate(), "Distillation requires clearbranch"
+
+    def checkcanonicaltrainingconfigsretainvalidationsemantics(self):
+        for path in (ROOT / "configs" / "train").glob("*.yaml"):
+            assert MSDYOLOConfig(path).validate(), path
