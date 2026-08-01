@@ -242,6 +242,10 @@ def main(opt):
     run(**vars(opt))
 
 
+def cli():
+    """Console-script entry point that parses command-line arguments."""
+    main(parse_opt())
+
+
 if __name__ == "__main__":
-    opt = parse_opt()
-    main(opt)
+    cli()

@@ -1,56 +1,61 @@
-# INSTAllation 
-## Requirements
-* Linux **(Recommend)**, Windows **(not Recommend, Please refer to this [issue](https://github.com/hukaixuan19970627/yolov5_obb/issues/224) if you have difficulty in generating utils/nms_rotated_ext.cpython-XX-XX-XX-XX.so)**
-* Python 3.7+ 
-* PyTorch ≥ 1.7 
-* CUDA 9.0 or higher
+# Installation
 
-I have tested the following versions of OS and softwares：
-* OS：Ubuntu 16.04/18.04
-* CUDA: 10.0/10.1/10.2/11.3
+## Supported environment
 
-## Install 
-**CUDA Driver Version ≥ CUDA Toolkit Version(runtime version) = torch.version.cuda**
+- Linux is recommended for CUDA and the rotated-NMS extension.
+- Python 3.12, CUDA 12.4, and PyTorch 2.5 are the validated cloud
+  combination. Package metadata accepts Python 3.8 or newer.
+- Install a PyTorch wheel matching the host CUDA driver from the
+  [official PyTorch selector](https://pytorch.org/get-started/locally/).
 
-a. Create a conda virtual environment and activate it, e.g.,
-```
-conda create -n Py39_Torch1.10_cu11.3 python=3.9 -y 
-source activate Py39_Torch1.10_cu11.3
-```
-b. Make sure your CUDA runtime api version ≤ CUDA driver version. (for example 11.3 ≤ 11.4)
-```
-nvcc -V
-nvidia-smi
-```
-c. Install PyTorch and torchvision following the [official instructions](https://pytorch.org/), Make sure cudatoolkit version same as CUDA runtime api version, e.g.,
-```
-pip3 install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
-nvcc -V
-python
->>> import torch
->>> torch.version.cuda
->>> exit()
-```
-d. Clone the yolov5-obb repository.
-```
-git clone https://github.com/hukaixuan19970627/yolov5_obb.git
-cd yolov5_obb
-```
-e. Install yolov5-obb.
+## Install the package
 
-```python 
-pip install -r requirements.txt
-cd utils/nms_rotated
-python setup.py develop  #or "pip install -v -e ."
+```bash
+git clone https://github.com/DexZane/MSDYOLO.git
+cd MSDYOLO
+python -m pip install --upgrade pip
+python -m pip install "setuptools==69.5.1"
+python -m pip install -e .
+python -m pip install "setuptools==69.5.1"  # restore the pin after dependency resolution
 ```
 
-## Install DOTA_devkit. 
-**(Custom Install, it's just a tool to split the high resolution image and evaluation the obb)**
+The setuptools pin keeps Python 3.12 environments that still depend on
+`pkgutil.ImpImporter` from failing during installation. `setup.sh` applies
+the same pin automatically on a cloud instance and also installs the
+OpenDataLab SDK used for DOTA v1.5.
 
+The package metadata is GPL-3.0 and includes the DOTA YAML/hyperparameter
+assets and the rotated-NMS C++/CUDA sources in wheel builds. The four console
+commands are available after installation:
+
+```bash
+msdyolo-train --help
+msdyolo-val --help
+msdyolo-detect --help
+msdyolo-export --help
 ```
-cd yolov5_obb/DOTA_devkit
-sudo apt-get install swig
-swig -c++ -python polyiou.i
+
+## Optional rotated-NMS extension
+
+The Python fallback is importable without compiling an extension. For CUDA
+NMS acceleration, build the extension from the canonical source directory:
+
+```bash
+cd msdyolo/utils/nms_rotated
 python setup.py build_ext --inplace
 ```
 
+The source files are deliberately shipped in the wheel so a deployed
+environment can build the extension after installation.
+
+## Verify the installation
+
+```bash
+python -m pytest -q
+python -m msdyolo.train --help
+```
+
+For a real DOTA cloud run, use `bash scripts/setup.sh`; it performs package
+installation, SDK setup, raw-data normalization, atomic patch preparation,
+weight validation, and training launch. See [GetStart.md](GetStart.md) for
+the operational flags and PID/log locations.

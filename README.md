@@ -1,193 +1,131 @@
 # MSDYOLO
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 1.10+](https://img.shields.io/badge/PyTorch-1.10+-ee4c2c.svg)](https://pytorch.org/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-Multi-Scale Deformable YOLO for Oriented Object Detection on DOTA Dataset
+MSDYOLO is a YOLOv5-OBB based rotated-object detector for aerial imagery. The
+supported cloud workflow prepares DOTA v1.5 patches and launches the full MSD
+training configuration from one command.
 
-## ✨ Features
-
-- 🎯 **Oriented Bounding Box Detection** - Rotated object detection for aerial images
-- 🔬 **Multi-Scale Distillation** - Teacher-student knowledge transfer
-- 📉 **Degradation Simulation** - PSF blur, downsampling, noise
-- 🚀 **One-Command Setup** - Automated dataset preparation and training
-- 📊 **DOTA Dataset** - Optimized for DOTA v1.5/v2.0
-
-## 🚀 Quick Start
-
-### Installation
+## Quick start (cloud GPU)
 
 ```bash
 git clone https://github.com/DexZane/MSDYOLO.git
 cd MSDYOLO
-pip install -e .
-```
-
-### One-Command Training
-
-```bash
 bash scripts/setup.sh
 ```
 
-This automatically:
-1. ✅ Downloads DOTA v1.5 dataset
-2. ✅ Splits images into 1024×1024 patches  
-3. ✅ Downloads pretrained YOLOv5 weights
-4. ✅ Starts training
+The setup script installs the Python package, pins `setuptools==69.5.1` for
+Python 3.12 compatibility, downloads DOTA v1.5 through the OpenDataLab SDK,
+normalizes its directory layout, validates and atomically builds 1024-pixel
+patches (200-pixel gap), downloads `yolov5s.pt`, and starts
+`configs/train/full.yaml` in the background.
 
-### Manual Training
-
-```bash
-# Download dataset
-python -m msdyolo.data.scripts.download_dota dataset/DOTA
-
-# Split images
-python -m msdyolo.data.scripts.split_dota \
-  --imageset dataset/DOTA/train/images \
-  --labelset dataset/DOTA/train/labelTxt \
-  --output dataset/DOTA/split/train \
-  --subsize 1024 --gap 200
-
-# Train
-python -m msdyolo.train --config configs/train/baseline.yaml --device 0
-```
-
-## 📊 Monitor Training
+Useful modes:
 
 ```bash
-# View logs
-tail -f training.log
-
-# Check GPU usage
-watch -n 1 nvidia-smi
-
-# Stop training
-pkill -f msdyolo.train
+bash scripts/setup.sh --prepare-only                 # prepare data only
+bash scripts/setup.sh --force-resplit                # rebuild a stale/current split
+bash scripts/setup.sh --foreground                   # keep training in this terminal
+bash scripts/setup.sh --config configs/train/degradation.yaml
 ```
 
-## 📁 Project Structure
+Background output is written to `training.log`. The exact process id is kept
+in `runs/setup/training.pid`; stop only that process with
+`kill $(cat runs/setup/training.pid)`. A second setup invocation refuses to
+start while the recorded process is alive.
 
-```
-MSDYOLO/
-├── msdyolo/              # Main package
-│   ├── train.py          # Training entry
-│   ├── detect.py         # Inference
-│   ├── models/           # YOLOv5-OBB models
-│   ├── utils/            # Core utilities
-│   └── data/             # Dataset configs & tools
-│       ├── dota.yaml     # DOTA config
-│       ├── scripts/      
-│       │   ├── download_dota.py
-│       │   └── split_dota.py
-│       └── hyps/         # Hyperparameters
-├── configs/
-│   ├── train/            # Training configs
-│   │   ├── baseline.yaml
-│   │   ├── degradation.yaml
-│   │   └── distillation.yaml
-│   └── models/           # Model architectures
-├── scripts/
-│   └── setup.sh          # One-command setup
-└── dataset/              # Data (auto-created)
+## Dataset and label contract
+
+Raw data is downloaded to `dataset/DOTA`. The preparer produces
+`dataset/DOTA/split/{train,val}/{images,labelTxt}` and records the source
+snapshot in `.msdyolo-split.json`. DOTA v1.5 validation images are official
+unlabelled data, so an empty `val/labelTxt` directory is valid; training labels
+must be present.
+
+Every DOTA label line is:
+
+```text
+x1 y1 x2 y2 x3 y3 x4 y4 class difficult
 ```
 
-## ⚙️ Configuration
+Coordinates are pixel coordinates in the patch (`0..1024`), not normalized
+`[0,1]` values. The splitter clips polygon vertices to patch boundaries and
+rejects malformed or degenerate objects. A prepared split is reused only when
+its source snapshot, geometry, and validation marker still match.
 
-### Training Modes
+## Training and diagnostics
 
-| Mode | File | Description |
-|------|------|-------------|
-| **Baseline** | `configs/train/baseline.yaml` | Pure detection |
-| **Degradation** | `configs/train/degradation.yaml` | With image degradation |
-| **Distillation** | `configs/train/distillation.yaml` | Full pipeline |
+The four current experiment configurations are:
 
-### Adjust Settings
+| Configuration | Purpose |
+| --- | --- |
+| `configs/train/baseline.yaml` | small CPU/fixture smoke test; distillation is off |
+| `configs/train/degradation.yaml` | degradation branch |
+| `configs/train/clearbranch.yaml` | degradation plus clear branch |
+| `configs/train/full.yaml` | cloud default: degradation, clear branch, distillation |
 
-Edit `configs/train/baseline.yaml`:
+For a direct run after data preparation:
 
-```yaml
-training:
-  epochs: 200
-  batchsize: 16      # Reduce for smaller GPUs
-  imagesize: 1024    # DOTA standard
-  workers: 4         # CPU workers
-  device: "0"        # GPU ID
-```
-
-## 🔧 Requirements
-
-- **Python** ≥ 3.8
-- **PyTorch** ≥ 1.10
-- **CUDA** ≥ 11.0 (for GPU)
-- **RAM** ≥ 32GB (for dataset prep)
-- **VRAM** ≥ 16GB (V100/A100 recommended)
-
-## 📦 Dataset
-
-MSDYOLO supports:
-- **DOTA v1.5** - 16 classes, 2806 train + 449 val images
-- **DOTA v2.0** - 18 classes
-
-Classes: `plane`, `ship`, `storage-tank`, `baseball-diamond`, `tennis-court`, `basketball-court`, `ground-track-field`, `harbor`, `bridge`, `large-vehicle`, `small-vehicle`, `helicopter`, `roundabout`, `soccer-ball-field`, `swimming-pool`, `container-crane`
-
-## 🐛 Known Issues & Fixes
-
-### Python 3.12 Compatibility
-**Error:** `AttributeError: module 'pkgutil' has no attribute 'ImpImporter'`
-
-**Fix:** Auto-handled by setup script
 ```bash
-pip install setuptools==69.5.1
+python -m msdyolo.train --config configs/train/full.yaml --device 0
 ```
 
-### Dataloader Deadlock
-**Symptom:** Training hangs during cache scanning
+Cloud configs use four dataloader workers to avoid the multiprocess deadlock
+seen with eight workers. In a real full-mode run, the first epoch is healthy
+when its log contains `match > 0`. A zero-match baseline smoke test is
+intentional because that configuration has no distillation targets; it is not
+a valid cloud-training acceptance signal.
 
-**Fix:** Reduced workers to 4 (default in configs)
+For a deterministic local CPU check:
 
-### Label Format
-**Issue:** Labels must use pixel coordinates, not normalized [0,1]
-
-**Status:** ✅ Fixed in `split_dota.py`
-
-## 📈 Performance
-
-Results on DOTA v1.5 (coming soon):
-
-| Model | mAP | Config |
-|-------|-----|--------|
-| Baseline | TBD | baseline.yaml |
-| +Degradation | TBD | degradation.yaml |
-| +Distillation | TBD | distillation.yaml |
-
-## 📝 Citation
-
-```bibtex
-@software{msdyolo2024,
-  title={MSDYOLO: Multi-Scale Deformable YOLO for Oriented Object Detection},
-  author={MSDYOLO Team},
-  year={2024},
-  url={https://github.com/DexZane/MSDYOLO}
-}
+```bash
+python -m msdyolo.train \
+  --config configs/train/baseline.yaml \
+  --data tests/fixtures/dota.yaml \
+  --cfg configs/models/yolov5n.yaml \
+  --hyp msdyolo/data/hyps/obb/hyp.finetune_dota.yaml \
+  --weights "" --device cpu --batch-size 1 --img-size 320 --single-batch
 ```
 
-## 🙏 Acknowledgments
+## Installed commands
 
-- [YOLOv5-OBB](https://github.com/hukaixuan19970627/yolov5_obb) - Oriented detection framework
-- [Ultralytics YOLOv5](https://github.com/ultralytics/yolov5) - Base architecture
-- [DOTA Dataset](https://captain-whu.github.io/DOTA/) - Benchmark data
-- [OpenDataLab](https://opendatalab.com/) - Dataset hosting
+After `pip install -e .` (or after `setup.sh`), the package exposes:
 
-## 📞 Contact
+```bash
+msdyolo-train --help
+msdyolo-val --help
+msdyolo-detect --help
+msdyolo-export --help
+```
 
-- **GitHub**: [@DexZane](https://github.com/DexZane)
-- **Issues**: [GitHub Issues](https://github.com/DexZane/MSDYOLO/issues)
+The root `train.py`, `val.py`, `detect.py`, and `export.py` files remain thin
+compatibility wrappers; implementation imports live under `msdyolo/`.
 
-## 📄 License
+## Project layout
 
-GPL-3.0 License - see [LICENSE](LICENSE) file
+```text
+configs/models/       YOLOv5-OBB model definitions
+configs/train/        four current experiment configurations
+msdyolo/data/          DOTA YAML, hyperparameters, and preparation tools
+msdyolo/models/        model implementation
+msdyolo/utils/         training, data, loss, and rotated-NMS utilities
+scripts/setup.sh       cloud preparation and launch orchestrator
+tests/fixtures/        small synthetic DOTA data for local verification
+docs/archive/          historical upstream/restructure documents
+```
 
----
+## Requirements
 
-**Ready to train?** Run `bash scripts/setup.sh` and you're good to go! 🚀
+- Python 3.12 is supported; Python 3.8+ is accepted by the package metadata.
+- PyTorch 2.5 with CUDA 12.4 works for the cloud setup; install the matching
+  PyTorch build for the host GPU.
+- A V100/A100-class GPU is recommended for full DOTA training. CPU execution
+  is intended for the single-batch smoke test only.
+
+See [docs/install.md](docs/install.md) for package installation and the
+optional rotated-NMS extension. [docs/GetStart.md](docs/GetStart.md) contains
+the short operational checklist.
+
+## License
+
+MSDYOLO is distributed under the [GNU General Public License v3](LICENSE).

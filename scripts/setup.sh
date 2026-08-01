@@ -154,6 +154,9 @@ echo "Installing cloud dependencies..."
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
 "$PYTHON_BIN" -m pip install -q -e .
 "$PYTHON_BIN" -m pip install -q openxlab
+# Dependency resolution may upgrade setuptools while installing the editable
+# package or OpenDataLab. Restore the Python 3.12 compatibility pin last.
+"$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
 
 if [[ ! -d "$DATASET_DIR/train/images" \
     || ! -d "$DATASET_DIR/train/labelTxt" \

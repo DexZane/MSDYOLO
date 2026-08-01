@@ -123,6 +123,7 @@ class CheckSetup:
             "-m pip install -q -e .",
             "-m pip install -q openxlab",
         ]
+        assert recorded[3] == "-m pip install -q setuptools==69.5.1"
         assert any(line.startswith("-m msdyolo.data.scripts.prepare_dota ") for line in recorded)
         assert not any(line.startswith("-m msdyolo.data.scripts.download_dota ") for line in recorded)
         assert not any("--force-resplit" in line for line in recorded)
