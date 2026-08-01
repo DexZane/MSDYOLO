@@ -25,7 +25,7 @@ class MSDYOLOConfig:
                 "phase": 1,
             },
             "training": {
-                "data": "msdyolo/data/dota-test.yaml",
+                "data": "tests/fixtures/dota.yaml",
                 "cfg": "configs/models/yolov5s.yaml",
                 "weights": "",
                 "epochs": 300,

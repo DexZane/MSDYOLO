@@ -154,7 +154,7 @@ def model(modelconfig, hypconfig, device):
 
 @pytest.fixture
 def hypconfig():
-    hyppath = ROOT / "data" / "hyps" / "obb" / "hyp.finetune_dota.yaml"
+    hyppath = ROOT / "msdyolo" / "data" / "hyps" / "obb" / "hyp.finetune_dota.yaml"
     with hyppath.open("r") as f:
         return yaml.safe_load(f)
 

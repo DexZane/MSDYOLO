@@ -134,7 +134,7 @@ class CheckNaming:
 
     def checkyamlkeysandablationvalues(self):
         violations = []
-        for path in sorted((ROOT / "configs").glob("*.yaml")):
+        for path in sorted((ROOT / "configs" / "train").glob("*.yaml")):
             document = yaml.safe_load(path.read_text(encoding="utf-8"))
             violations.extend((path.name, key) for key in yamlkeys(document) if "_" in key)
             assert document["ablationmode"] in {
@@ -149,7 +149,7 @@ class CheckNaming:
         roots = [
             ROOT / "configs",
             ROOT / "tests",
-            ROOT / "data" / "dota-test",
+            ROOT / "tests" / "fixtures" / "dota",
         ]
         violations = []
         for root in roots:

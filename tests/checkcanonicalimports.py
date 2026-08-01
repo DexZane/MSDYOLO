@@ -101,7 +101,7 @@ assert exportmain.__module__ == "msdyolo.export"
 from msdyolo.utils.config import MSDYOLOConfig
 
 training = MSDYOLOConfig().config["training"]
-assert training["data"] == "msdyolo/data/dota-test.yaml"
+assert training["data"] == "tests/fixtures/dota.yaml"
 assert training["cfg"] == "configs/models/yolov5s.yaml"
 assert training["hyp"] == "msdyolo/data/hyps/obb/hyp.finetune_dota.yaml"
 """,

@@ -1,5 +1,5 @@
 # P0 本地合成 DOTA 数据，仅用于 CPU 闭环验证。
-path: data/dota-test
+path: tests/fixtures/dota
 train: images
 val: images
 nc: 16

@@ -59,7 +59,7 @@ class CheckDelivery:
             assert config.get("degradation.noise.enabled"), name
 
     def checkdotatestdatasetexists(self):
-        dataconfig = yaml.safe_load((ROOT / "data" / "dota-test.yaml").read_text())
+        dataconfig = yaml.safe_load((ROOT / "tests" / "fixtures" / "dota.yaml").read_text())
         dataroot = ROOT / dataconfig["path"]
         assert len(list((dataroot / "images").glob("test*.png"))) == 5
         assert len(list((dataroot / "labelTxt").glob("test*.txt"))) == 5
