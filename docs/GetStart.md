@@ -30,6 +30,12 @@ kill "$(cat runs/setup/training.pid)"  # only the recorded training process
 The setup lock and PID checks make repeated invocations fail safely while a
 job is running. It never uses a global process-name kill.
 
+The cloud workspace keeps generated files out of the Git checkout: raw and
+split data live under `dataset/DOTA`, launch state under `runs/setup`, trainer
+outputs under `runs/train`, and the downloaded `yolov5s.pt` checkpoint at the
+project root. These paths are ignored and can be removed or archived
+independently of source code.
+
 ## Data checks
 
 The raw dataset lives at `dataset/DOTA`; patches are written to

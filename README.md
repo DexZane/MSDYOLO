@@ -114,6 +114,20 @@ tests/fixtures/        small synthetic DOTA data for local verification
 docs/archive/          historical upstream/restructure documents
 ```
 
+Cloud-only runtime data is deliberately kept outside the source tree tracked
+by Git:
+
+```text
+dataset/DOTA/           raw DOTA files and prepared patches
+runs/setup/             launch lock, PID, and setup state
+runs/train/             checkpoints and trainer outputs
+training.log            background setup log
+yolov5s.pt              downloaded pretrained checkpoint
+```
+
+These paths are ignored by `.gitignore`; a fresh clone therefore contains only
+reproducible source, configuration, tests, and documentation.
+
 ## Requirements
 
 - Python 3.12 is supported; Python 3.8+ is accepted by the package metadata.
