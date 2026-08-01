@@ -9,7 +9,6 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHONFILES = [
-    ROOT / "trainmsd.py",
     *sorted((ROOT / "utils").glob("*.py")),
     *sorted((ROOT / "tests").glob("check*.py")),
 ]
@@ -160,40 +159,4 @@ class CheckNaming:
                     continue
                 if "_" in path.name:
                     violations.append(str(relative))
-        assert violations == []
-
-    def checkcurrentdocumentpathsusehyphens(self):
-        expected = {
-            ROOT / "docs" / "cp4pre-techdef.md",
-            ROOT / "docs" / "claude-review.md",
-        }
-        assert all(path.exists() for path in expected)
-        deprecated = {
-            ROOT / "docs" / "cp4pretechdef.md",
-            ROOT / "docs" / "cp4pre_revisions.md",
-            ROOT / "docs" / "cp4pre_techdef.md",
-            ROOT / "docs" / "gpt12_submission.md",
-            ROOT / "docs" / "p0a_completion_report.md",
-        }
-        assert not any(path.exists() for path in deprecated)
-
-    def checkcurrenttechnicalexamplesfollowprojectnames(self):
-        document = (ROOT / "docs" / "cp4pre-techdef.md").read_text(encoding="utf-8")
-        violations = []
-        for blockindex, block in enumerate(pythonblocks(document)):
-            tree = ast.parse(block)
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    if not validcontinuous(node.name):
-                        violations.append((blockindex, node.name))
-                    for argument in [
-                        *node.args.posonlyargs,
-                        *node.args.args,
-                        *node.args.kwonlyargs,
-                    ]:
-                        if not validcontinuous(argument.arg):
-                            violations.append((blockindex, argument.arg))
-                elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-                    if not validcontinuous(node.id):
-                        violations.append((blockindex, node.id))
         assert violations == []

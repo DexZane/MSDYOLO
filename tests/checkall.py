@@ -30,7 +30,7 @@ class CheckDelivery:
     def checkbaselinedefaultsarelowmemory(self):
         config = MSDYOLOConfig(ROOT / "configs" / "msdyolo-baseline.yaml")
         assert config.get("training.batchsize") == 2
-        assert config.get("training.imagesize") == 1024
+        assert config.get("training.imagesize") == 320
         assert not config.get("degradation.enabled")
         assert not config.get("clearbranch.enabled")
         assert not config.get("distillation.enabled")

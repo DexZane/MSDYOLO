@@ -33,18 +33,18 @@ def teacherforward(model, cleanimages, topk=100, verbose=False):
                 print(f"  Raw outputs count: {len(teacherraw)}")
                 for i, raw in enumerate(teacherraw):
                     print(f"  Scale {i} shape: {raw.shape}")
-                    obj_logits = raw[..., 4]
-                    print(f"    Objectness logits: min={obj_logits.min():.6f} max={obj_logits.max():.6f} mean={obj_logits.mean():.6f}")
-                    obj_sigmoid = obj_logits.sigmoid()
-                    print(f"    Objectness sigmoid: min={obj_sigmoid.min():.6f} max={obj_sigmoid.max():.6f} mean={obj_sigmoid.mean():.6f}")
+                    objlogits = raw[..., 4]
+                    print(f"    Objectness logits: min={objlogits.min():.6f} max={objlogits.max():.6f} mean={objlogits.mean():.6f}")
+                    objsigmoid = objlogits.sigmoid()
+                    print(f"    Objectness sigmoid: min={objsigmoid.min():.6f} max={objsigmoid.max():.6f} mean={objsigmoid.mean():.6f}")
 
             del decodedoutput
             sparse = decodesparse(teacherraw, model, topk)
 
             if verbose:
                 print(f"  Sparse predictions shape: {sparse.values.shape}")
-                conf_calc = sparse.values[..., 4].sigmoid() * sparse.values[..., 5:-180].sigmoid().amax(-1)
-                print(f"  Confidence (calculated): min={conf_calc.min():.6f} max={conf_calc.max():.6f} mean={conf_calc.mean():.6f}")
+                confcalc = sparse.values[..., 4].sigmoid() * sparse.values[..., 5:-180].sigmoid().amax(-1)
+                print(f"  Confidence (calculated): min={confcalc.min():.6f} max={confcalc.max():.6f} mean={confcalc.mean():.6f}")
 
             detached = SparsePredictions(
                 *(tensor.detach() for tensor in sparse.tensors())
