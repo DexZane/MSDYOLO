@@ -157,7 +157,7 @@ class CheckNaming:
                 relative = path.relative_to(ROOT)
                 if "__pycache__" in path.parts:
                     continue
-                if path.name in {"__init__.py", "__pycache__"}:
+                if path.name in {"__init__.py", "__pycache__", ".DS_Store"}:
                     continue
                 if path.name in ALLOWEDDIRECTORIES:
                     continue
