@@ -74,6 +74,22 @@ def setupskeleton(tmp_path: Path, weights: bool = True) -> tuple[Path, dict[str,
     return project, environment, calls
 
 
+def runserializedweights(tmp_path: Path, checkpoint):
+    project, environment, calls = setupskeleton(tmp_path)
+    torch.save(checkpoint, project / "yolov5s.pt")
+    environment["SETUP_REAL_VALIDATOR"] = "true"
+    environment["SETUP_REAL_PYTHON"] = sys.executable
+    result = subprocess.run(
+        ["bash", "scripts/setup.sh", "--foreground"],
+        cwd=project,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return result, calls
+
+
 class CheckSetup:
     def checkhelpdescribesallpublicflagswithoutinstalling(self):
         result = subprocess.run(
@@ -154,19 +170,7 @@ class CheckSetup:
         )
 
     def checkmalformedserializedweightsarerejectedbeforetraining(self, tmp_path: Path):
-        project, environment, calls = setupskeleton(tmp_path)
-        torch.save({"foo": "bar"}, project / "yolov5s.pt")
-        environment["SETUP_REAL_VALIDATOR"] = "true"
-        environment["SETUP_REAL_PYTHON"] = sys.executable
-
-        result = subprocess.run(
-            ["bash", "scripts/setup.sh", "--foreground"],
-            cwd=project,
-            env=environment,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        result, calls = runserializedweights(tmp_path, {"foo": "bar"})
 
         assert result.returncode == 1
         assert "invalid pretrained weights" in result.stderr
@@ -175,22 +179,45 @@ class CheckSetup:
         )
 
     def checkmodelstatemappingcheckpointisaccepted(self, tmp_path: Path):
-        project, environment, calls = setupskeleton(tmp_path)
-        torch.save({"model": {"weight": torch.ones(1)}}, project / "yolov5s.pt")
-        environment["SETUP_REAL_VALIDATOR"] = "true"
-        environment["SETUP_REAL_PYTHON"] = sys.executable
-
-        result = subprocess.run(
-            ["bash", "scripts/setup.sh", "--foreground"],
-            cwd=project,
-            env=environment,
-            text=True,
-            capture_output=True,
-            check=False,
+        result, calls = runserializedweights(
+            tmp_path, {"model": {"weight": torch.ones(1)}}
         )
 
         assert result.returncode == 0, result.stderr
         assert "-m msdyolo.train --config configs/train/full.yaml" in calls.read_text().splitlines()
+
+    def checkdirecttensorstatemappingisaccepted(self, tmp_path: Path):
+        result, calls = runserializedweights(tmp_path, {"weight": torch.ones(1)})
+
+        assert result.returncode == 0, result.stderr
+        assert "-m msdyolo.train --config configs/train/full.yaml" in calls.read_text().splitlines()
+
+    def checkmodulecheckpointisaccepted(self, tmp_path: Path):
+        result, calls = runserializedweights(tmp_path, {"model": torch.nn.Linear(1, 1)})
+
+        assert result.returncode == 0, result.stderr
+        assert "-m msdyolo.train --config configs/train/full.yaml" in calls.read_text().splitlines()
+
+    def checkemptydirectstatemappingisrejected(self, tmp_path: Path):
+        result, calls = runserializedweights(tmp_path, {})
+
+        assert result.returncode == 1
+        assert "invalid pretrained weights" in result.stderr
+        assert not any(line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines())
+
+    def checkemptywrappedstatemappingisrejected(self, tmp_path: Path):
+        result, calls = runserializedweights(tmp_path, {"model": {}})
+
+        assert result.returncode == 1
+        assert "invalid pretrained weights" in result.stderr
+        assert not any(line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines())
+
+    def checkwrappednontensorstatemappingisrejected(self, tmp_path: Path):
+        result, calls = runserializedweights(tmp_path, {"model": {"weight": "bad"}})
+
+        assert result.returncode == 1
+        assert "invalid pretrained weights" in result.stderr
+        assert not any(line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines())
 
     def checkdefaultlaunchusesfullconfigandforceflagonlywhenrequested(self, tmp_path: Path):
         project, environment, calls = setupskeleton(tmp_path)
