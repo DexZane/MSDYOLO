@@ -73,6 +73,50 @@ def treebytes(root: Path) -> dict[str, bytes]:
 
 
 class CheckDotaPrepare:
+    @pytest.mark.parametrize(
+        "choice",
+        ["equal", "ancestor", "train", "val", "trainimages", "vallabels"],
+    )
+    def checkunsafeoutputpathsrejectbeforerawmutation(
+        self, tmp_path: Path, choice: str
+    ):
+        dataset = writerawdataset(tmp_path)
+        outputs = {
+            "equal": dataset,
+            "ancestor": dataset.parent,
+            "train": dataset / "train",
+            "val": dataset / "val",
+            "trainimages": dataset / "train" / "images" / "prepared",
+            "vallabels": dataset / "val" / "labelTxt" / "prepared",
+        }
+        before = treebytes(dataset)
+        calls = []
+
+        def forbidden(*args):
+            calls.append(args)
+            raise AssertionError("splitter must not run for unsafe output")
+
+        with pytest.raises(ValueError, match="unsafe.*output"):
+            prepare_dataset(
+                dataset, outputs[choice], 16, 2, 1, splitter=forbidden
+            )
+
+        assert calls == []
+        assert treebytes(dataset) == before
+        assert not (dataset / "val" / "labelTxt").exists()
+        assert not list(tmp_path.parent.glob(".split-candidate-*"))
+
+    def checksafedatasetchildoutputremainsallowed(self, tmp_path: Path):
+        dataset = writerawdataset(tmp_path)
+        output = dataset / "split"
+
+        status = prepare_dataset(
+            dataset, output, 16, 2, 1, splitter=makefakesplitter([])
+        )
+
+        assert status.ready
+        assert output.is_dir()
+
     def checkcompletionmarkercontrolsreuseandrebuild(self, tmp_path: Path):
         dataset = writerawdataset(tmp_path)
         output = tmp_path / "split"
@@ -103,6 +147,7 @@ class CheckDotaPrepare:
         assert len(calls) == 6
 
         (output / "train" / "images" / "patch.png").unlink()
+        (output / "train" / "images" / ".DS_Store").write_bytes(b"metadata")
         prepare_dataset(dataset, output, 16, 1, 1, splitter=splitter)
         assert len(calls) == 8
 

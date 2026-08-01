@@ -19,6 +19,7 @@ from msdyolo.data.scripts.split_dota import split_dataset, validate_split_argume
 
 STATE_FILE = ".msdyolo-split.json"
 FORMAT_VERSION = "dota-pixel-v1"
+IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg"})
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,10 @@ def _files(directory: Path, suffix: str | None = None) -> list[Path]:
         for path in directory.rglob("*")
         if path.is_file() and (suffix is None or path.suffix == suffix)
     )
+
+
+def _image_files(directory: Path) -> list[Path]:
+    return [path for path in _files(directory) if path.suffix.lower() in IMAGE_SUFFIXES]
 
 
 def source_snapshot(dataset_dir: Path) -> dict[str, object]:
@@ -88,10 +93,10 @@ def validate_split_tree(split_dir: Path, subsize: int) -> SplitStatus:
     """Validate all labels and required directories in a prepared split tree."""
 
     split_dir = Path(split_dir)
-    train_images = _files(split_dir / "train" / "images")
+    train_images = _image_files(split_dir / "train" / "images")
     train_labels = _files(split_dir / "train" / "labelTxt", ".txt")
     val_images_directory = split_dir / "val" / "images"
-    val_images = _files(val_images_directory)
+    val_images = _image_files(val_images_directory)
     errors: list[str] = []
     if not train_images:
         errors.append(f"no split training images found in {split_dir / 'train' / 'images'}")
@@ -176,6 +181,19 @@ def _exists(path: Path) -> bool:
     return path.exists() or path.is_symlink()
 
 
+def _validate_output_path(dataset_dir: Path, split_dir: Path) -> None:
+    raw_roots = ((dataset_dir / "train").resolve(), (dataset_dir / "val").resolve())
+    replaces_dataset = split_dir == dataset_dir or split_dir in dataset_dir.parents
+    overlaps_raw_split = any(
+        split_dir == root or split_dir.is_relative_to(root) for root in raw_roots
+    )
+    if replaces_dataset or overlaps_raw_split:
+        raise ValueError(
+            f"unsafe split output path {split_dir}: it must not replace the raw "
+            f"dataset {dataset_dir} or its train/val trees"
+        )
+
+
 def prepare_dataset(
     dataset_dir,
     split_dir,
@@ -187,8 +205,9 @@ def prepare_dataset(
 ) -> SplitStatus:
     """Normalize raw layout, then safely reuse or rebuild a validated split."""
 
-    dataset_dir = Path(dataset_dir)
-    split_dir = Path(split_dir)
+    dataset_dir = Path(dataset_dir).resolve()
+    split_dir = Path(split_dir).resolve()
+    _validate_output_path(dataset_dir, split_dir)
     backup = split_dir.with_name(f".{split_dir.name}-backup")
     if _exists(backup):
         raise RuntimeError(
