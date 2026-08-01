@@ -219,6 +219,13 @@ class CheckSetup:
         assert "invalid pretrained weights" in result.stderr
         assert not any(line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines())
 
+    def checknondictcheckpointisrejected(self, tmp_path: Path):
+        result, calls = runserializedweights(tmp_path, 42)
+
+        assert result.returncode == 1
+        assert "invalid pretrained weights" in result.stderr
+        assert not any(line.startswith("-m msdyolo.train ") for line in calls.read_text().splitlines())
+
     def checkdefaultlaunchusesfullconfigandforceflagonlywhenrequested(self, tmp_path: Path):
         project, environment, calls = setupskeleton(tmp_path)
 
