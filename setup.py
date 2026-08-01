@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -14,10 +14,25 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/DexZane/MSDYOLO",
-    packages=find_packages(),
+    packages=find_packages(include=["msdyolo", "msdyolo.*"]),
+    include_package_data=True,
+    package_data={
+        "msdyolo": [
+            "data/*.yaml",
+            "data/hyps/obb/*.yaml",
+            "data/examples/images/*",
+            "data/examples/labelTxt/*.txt",
+            "data/examples/*.txt",
+            "utils/nms_rotated/setup.py",
+            "utils/nms_rotated/src/*.cpp",
+            "utils/nms_rotated/src/*.cu",
+            "utils/nms_rotated/src/*.h",
+        ],
+    },
+    license="GPL-3.0-or-later",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8",
@@ -25,7 +40,9 @@ setup(
     entry_points={
         "console_scripts": [
             "msdyolo-train=msdyolo.train:main",
-            "msdyolo-detect=msdyolo.detect:main",
+            "msdyolo-val=msdyolo.val:cli",
+            "msdyolo-detect=msdyolo.detect:cli",
+            "msdyolo-export=msdyolo.export:cli",
         ],
     },
 )

@@ -1,181 +1,203 @@
-#!/bin/bash
-###############################################################################
-# MSDYOLO Complete Setup Script (Post-Restructure)
-# One-command setup from fresh cloud instance to training
-###############################################################################
+#!/usr/bin/env bash
+# Prepare DOTA v1.5 and start the canonical full-MSD cloud training job.
 
-set -e
+set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+usage() {
+    cat <<'EOF'
+Usage: bash scripts/setup.sh [options]
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}MSDYOLO Complete Setup${NC}"
-echo -e "${GREEN}========================================${NC}"
+Prepare DOTA v1.5 patches and launch full MSDYOLO training.
+
+Options:
+  --prepare-only       Install and prepare data, but do not start training.
+  --force-resplit      Rebuild the prepared DOTA split even when it is current.
+  --foreground         Run training in this terminal instead of the background.
+  --config PATH        Training config (default: configs/train/full.yaml).
+  -h, --help           Show this help and exit.
+EOF
+}
+
+PREPARE_ONLY=false
+FORCE_RESPLIT=false
+FOREGROUND=false
+CONFIG="configs/train/full.yaml"
+
+while (($#)); do
+    case "$1" in
+        --prepare-only)
+            PREPARE_ONLY=true
+            ;;
+        --force-resplit)
+            FORCE_RESPLIT=true
+            ;;
+        --foreground)
+            FOREGROUND=true
+            ;;
+        --config)
+            if (($# < 2)) || [[ "$2" == -* ]]; then
+                echo "error: --config requires a path" >&2
+                exit 2
+            fi
+            CONFIG="$2"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "error: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_DIR"
-
-# Step 1: Install package
-echo -e "\n${YELLOW}[1/8] Installing MSDYOLO package...${NC}"
-pip install -q -e .
-pip install -q setuptools==69.5.1  # Python 3.12 fix
-echo -e "${GREEN}✓ Package installed${NC}"
-
-# Step 2: Download DOTA dataset
-echo -e "\n${YELLOW}[2/8] Setting up DOTA dataset...${NC}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 DATASET_DIR="$PROJECT_DIR/dataset/DOTA"
-
-if [ -d "$DATASET_DIR/train/images" ] && [ -d "$DATASET_DIR/val/images" ]; then
-    echo -e "${GREEN}✓ Dataset already exists${NC}"
-else
-    echo "Downloading DOTA v1.5..."
-    python3 -m msdyolo.data.scripts.download_dota "$DATASET_DIR"
-fi
-
-# Step 3: Fix dataset structure
-echo -e "\n${YELLOW}[3/8] Organizing dataset structure...${NC}"
-
-# Move train labels from subdirectory
-if [ -d "$DATASET_DIR/train/labelTxt/DOTA-v1.5_train" ]; then
-    echo "Moving train labels..."
-    mv "$DATASET_DIR/train/labelTxt/DOTA-v1.5_train"/* "$DATASET_DIR/train/labelTxt/" 2>/dev/null || true
-    rmdir "$DATASET_DIR/train/labelTxt/DOTA-v1.5_train" 2>/dev/null || true
-fi
-
-# Move val labels from subdirectory (if exists)
-if [ -d "$DATASET_DIR/val/labelTxt/DOTA-v1.5_val" ]; then
-    echo "Moving val labels..."
-    mv "$DATASET_DIR/val/labelTxt/DOTA-v1.5_val"/* "$DATASET_DIR/val/labelTxt/" 2>/dev/null || true
-    rmdir "$DATASET_DIR/val/labelTxt/DOTA-v1.5_val" 2>/dev/null || true
-fi
-
-# Handle val without labels (download issue)
-if [ ! -d "$DATASET_DIR/val/labelTxt" ]; then
-    echo -e "${YELLOW}Warning: val/labelTxt not found. Using train-val split.${NC}"
-    mkdir -p "$DATASET_DIR/val/labelTxt"
-fi
-
-echo -e "${GREEN}✓ Dataset structure organized${NC}"
-
-# Step 4: Split images into patches
-echo -e "\n${YELLOW}[4/8] Splitting images into 1024×1024 patches...${NC}"
 SPLIT_DIR="$DATASET_DIR/split"
+RUN_DIR="$PROJECT_DIR/runs/setup"
+PID_FILE="$RUN_DIR/training.pid"
+LOCK_DIR="$RUN_DIR/.launch.lock"
+LOG_FILE="$PROJECT_DIR/training.log"
+WEIGHTS_FILE="${WEIGHTS_FILE:-$PROJECT_DIR/yolov5s.pt}"
+WEIGHTS_URL="${WEIGHTS_URL:-https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5s.pt}"
 
-if [ -d "$SPLIT_DIR/train/images" ]; then
-    echo -e "${GREEN}✓ Already split, skipping${NC}"
+if [[ "$CONFIG" == /* ]]; then
+    CONFIG_PATH="$CONFIG"
 else
-    mkdir -p "$SPLIT_DIR"
+    CONFIG_PATH="$PROJECT_DIR/$CONFIG"
+fi
+if [[ ! -f "$CONFIG_PATH" ]]; then
+    echo "error: config file not found: $CONFIG_PATH" >&2
+    exit 2
+fi
 
-    echo "Splitting train set..."
-    python3 -m msdyolo.data.scripts.split_dota \
-        --imageset "$DATASET_DIR/train/images" \
-        --labelset "$DATASET_DIR/train/labelTxt" \
-        --output "$SPLIT_DIR/train" \
-        --subsize 1024 \
-        --gap 200 \
-        --num_process 8
+releaselaunchlock() {
+    rm -f "$LOCK_DIR/owner.pid"
+    rmdir "$LOCK_DIR" 2>/dev/null || true
+}
 
-    if [ -d "$DATASET_DIR/val/images" ]; then
-        echo "Splitting val set..."
-        python3 -m msdyolo.data.scripts.split_dota \
-            --imageset "$DATASET_DIR/val/images" \
-            --labelset "$DATASET_DIR/val/labelTxt" \
-            --output "$SPLIT_DIR/val" \
-            --subsize 1024 \
-            --gap 200 \
-            --num_process 8
+acquirelaunchlock() {
+    mkdir -p "$RUN_DIR"
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+        LOCK_OWNER=""
+        if [[ -f "$LOCK_DIR/owner.pid" ]]; then
+            LOCK_OWNER="$(tr -d '[:space:]' < "$LOCK_DIR/owner.pid")"
+        fi
+        if [[ "$LOCK_OWNER" =~ ^[0-9]+$ ]] && kill -0 "$LOCK_OWNER" 2>/dev/null; then
+            echo "error: setup is already preparing or launching training (PID: $LOCK_OWNER)" >&2
+        else
+            echo "error: setup launch lock exists at $LOCK_DIR; inspect and remove it after confirming no setup is active" >&2
+        fi
+        exit 1
     fi
+    printf '%s\n' "$$" >"$LOCK_DIR/owner.pid"
+    trap releaselaunchlock EXIT
+}
 
-    echo -e "${GREEN}✓ Image splitting complete${NC}"
-fi
+checkexistingtraining() {
+    if [[ ! -f "$PID_FILE" ]]; then
+        return
+    fi
+    EXISTING_PID="$(tr -d '[:space:]' < "$PID_FILE")"
+    if [[ "$EXISTING_PID" =~ ^[0-9]+$ ]] && kill -0 "$EXISTING_PID" 2>/dev/null; then
+        echo "error: training is already running (PID: $EXISTING_PID; log: $LOG_FILE)" >&2
+        exit 1
+    fi
+    rm -f "$PID_FILE"
+}
 
-# Step 5: Create labelTxt symlinks
-echo -e "\n${YELLOW}[5/8] Creating label symlinks...${NC}"
-cd "$SPLIT_DIR/train"
-ln -sf labels labelTxt 2>/dev/null || true
+writepid() {
+    PID_TMP="$(mktemp "$RUN_DIR/.training.pid.XXXXXX")"
+    printf '%s\n' "$1" >"$PID_TMP"
+    mv -f "$PID_TMP" "$PID_FILE"
+}
 
-if [ -d "$SPLIT_DIR/val" ]; then
-    cd "$SPLIT_DIR/val"
-    ln -sf labels labelTxt 2>/dev/null || true
-fi
+downloadweights() {
+    if [[ -s "$WEIGHTS_FILE" ]]; then
+        if validateweights "$WEIGHTS_FILE"; then
+            return
+        fi
+        echo "error: invalid pretrained weights: $WEIGHTS_FILE" >&2
+        exit 1
+    fi
+    mkdir -p "$(dirname "$WEIGHTS_FILE")"
+    WEIGHTS_TMP="$(mktemp "${WEIGHTS_FILE}.download.XXXXXX")"
+    echo "Downloading pretrained yolov5s weights..."
+    if ! "$PYTHON_BIN" -c 'from urllib.request import urlretrieve; import sys; urlretrieve(sys.argv[1], sys.argv[2])' "$WEIGHTS_URL" "$WEIGHTS_TMP"; then
+        rm -f "$WEIGHTS_TMP"
+        echo "error: failed to download pretrained weights from $WEIGHTS_URL" >&2
+        exit 1
+    fi
+    if [[ ! -s "$WEIGHTS_TMP" ]] || ! validateweights "$WEIGHTS_TMP"; then
+        rm -f "$WEIGHTS_TMP"
+        echo "error: invalid pretrained weights from $WEIGHTS_URL" >&2
+        exit 1
+    fi
+    mv -f "$WEIGHTS_TMP" "$WEIGHTS_FILE"
+}
+
+validateweights() {
+    "$PYTHON_BIN" -c 'from collections.abc import Mapping; import sys, torch; checkpoint = torch.load(sys.argv[1], map_location="cpu", weights_only=False); wrapped = isinstance(checkpoint, Mapping) and "model" in checkpoint; candidate = checkpoint["model"] if wrapped else checkpoint; state = candidate.float().state_dict() if wrapped and hasattr(candidate, "float") else candidate; assert (not wrapped or hasattr(candidate, "float") or isinstance(candidate, Mapping)) and isinstance(state, Mapping) and state and all(isinstance(key, str) and isinstance(value, torch.Tensor) for key, value in state.items())' "$1"
+}
 
 cd "$PROJECT_DIR"
-echo -e "${GREEN}✓ Symlinks created${NC}"
 
-# Step 6: Verify dataset
-echo -e "\n${YELLOW}[6/8] Verifying dataset...${NC}"
-TRAIN_IMAGES=$(ls "$SPLIT_DIR/train/images" 2>/dev/null | wc -l)
-TRAIN_LABELS=$(ls "$SPLIT_DIR/train/labels"/*.txt 2>/dev/null | wc -l)
+acquirelaunchlock
+checkexistingtraining
 
-echo "Train: $TRAIN_IMAGES images, $TRAIN_LABELS labels"
+echo "Installing cloud dependencies..."
+"$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
+"$PYTHON_BIN" -m pip install -q -e .
+"$PYTHON_BIN" -m pip install -q openxlab
+# Dependency resolution may upgrade setuptools while installing the editable
+# package or OpenDataLab. Restore the Python 3.12 compatibility pin last.
+"$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
 
-if [ "$TRAIN_LABELS" -eq 0 ]; then
-    echo -e "${RED}✗ No labels found!${NC}"
-    exit 1
+if [[ ! -d "$DATASET_DIR/train/images" \
+    || ! -d "$DATASET_DIR/train/labelTxt" \
+    || ! -d "$DATASET_DIR/val/images" ]]; then
+    echo "Downloading DOTA v1.5..."
+    "$PYTHON_BIN" -m msdyolo.data.scripts.download_dota "$DATASET_DIR"
 fi
 
-if [ -d "$SPLIT_DIR/val" ]; then
-    VAL_IMAGES=$(ls "$SPLIT_DIR/val/images" 2>/dev/null | wc -l)
-    VAL_LABELS=$(ls "$SPLIT_DIR/val/labels"/*.txt 2>/dev/null | wc -l)
-    echo "Val: $VAL_IMAGES images, $VAL_LABELS labels"
+PREPARE_ARGS=(
+    -m msdyolo.data.scripts.prepare_dota
+    --dataset "$DATASET_DIR"
+    --output "$SPLIT_DIR"
+    --subsize 1024
+    --gap 200
+    --num-process 4
+)
+if [[ "$FORCE_RESPLIT" == true ]]; then
+    PREPARE_ARGS+=(--force-resplit)
 fi
 
-echo -e "${GREEN}✓ Dataset verified${NC}"
+echo "Preparing validated DOTA patches..."
+"$PYTHON_BIN" "${PREPARE_ARGS[@]}"
 
-# Step 7: Download pretrained weights
-echo -e "\n${YELLOW}[7/8] Downloading pretrained weights...${NC}"
-if [ ! -f "yolov5s.pt" ]; then
-    wget -q https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5s.pt
-    echo -e "${GREEN}✓ Downloaded yolov5s.pt${NC}"
-else
-    echo -e "${GREEN}✓ yolov5s.pt already exists${NC}"
+if [[ "$PREPARE_ONLY" == true ]]; then
+    echo "DOTA preparation complete. Training was not started (--prepare-only)."
+    exit 0
 fi
 
-# Step 8: Start training
-echo -e "\n${YELLOW}[8/8] Starting training...${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo "Configuration:"
-echo "  Model: YOLOv5s + MSD"
-echo "  Dataset: DOTA v1.5"
-echo "  Epochs: 200"
-echo "  Batch: 16"
-echo "  Image size: 1024"
-echo "  Workers: 4"
-echo -e "${GREEN}========================================${NC}"
+downloadweights
 
-# Kill existing training
-pkill -f "msdyolo.train" 2>/dev/null || true
-sleep 2
+if [[ "$FOREGROUND" == true ]]; then
+    writepid "$$"
+    releaselaunchlock
+    trap - EXIT
+    exec "$PYTHON_BIN" -m msdyolo.train --config "$CONFIG"
+fi
 
-# Start training
-nohup python3 -m msdyolo.train \
-    --config configs/train/baseline.yaml \
-    --device 0 \
-    > training.log 2>&1 &
-
+"$PYTHON_BIN" -m msdyolo.train --config "$CONFIG" >"$LOG_FILE" 2>&1 &
 TRAIN_PID=$!
-echo ""
-echo -e "${GREEN}✓ Training started (PID: $TRAIN_PID)${NC}"
-echo ""
-echo "Monitor:"
-echo "  tail -f training.log"
-echo ""
-echo "GPU:"
-echo "  watch -n 1 nvidia-smi"
-echo ""
-echo "Stop:"
-echo "  kill $TRAIN_PID"
-echo ""
+writepid "$TRAIN_PID"
 
-# Show initial output
-sleep 5
-echo "Initial output:"
-tail -30 training.log
-
-echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Setup Complete!${NC}"
-echo -e "${GREEN}========================================${NC}"
+echo "Training started in the background (PID: $TRAIN_PID)."
+echo "Monitor: tail -f $LOG_FILE"
+echo "Stop: kill $TRAIN_PID"

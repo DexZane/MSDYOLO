@@ -5,8 +5,8 @@ import math
 import pytest
 import torch
 
-import utils.rotatednms as rotatedmodule
-from utils.rotatednms import classwiserotatednms, rotatediou, rotatednms
+import msdyolo.utils.rotatednms as rotatedmodule
+from msdyolo.utils.rotatednms import classwiserotatednms, rotatediou, rotatednms
 
 
 class CheckRotatedIoU:
@@ -52,7 +52,7 @@ class CheckRotatedIoU:
 class CheckRotatedNMS:
 
     def checkupstreamfallbackinterfaceusesstrictimplementation(self):
-        from utils.nms_rotated import obb_nms
+        from msdyolo.utils.nms_rotated import obb_nms
 
         boxes = torch.tensor([[50, 50, 20, 10, 0.0], [51, 50, 20, 10, 0.0]])
         selectedboxes, kept = obb_nms(boxes, torch.tensor([0.9, 0.8]), 0.5)
@@ -60,7 +60,7 @@ class CheckRotatedNMS:
         assert torch.equal(selectedboxes, boxes[kept])
 
     def checkupstreamfallbackfilterstinyboxes(self):
-        from utils.nms_rotated import obb_nms
+        from msdyolo.utils.nms_rotated import obb_nms
 
         boxes = torch.tensor([[10, 10, 0.0001, 5, 0.0], [30, 30, 5, 5, 0.0]])
         selectedboxes, kept = obb_nms(boxes, torch.tensor([0.9, 0.8]), 0.5)

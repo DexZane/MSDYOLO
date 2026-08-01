@@ -12,10 +12,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from models.yolo import Model
-from utils.config import MSDYOLOConfig
-from utils.loss import ComputeLoss
-from utils.trainer import MSDYOLOTrainer
+from msdyolo.models.yolo import Model
+from msdyolo.utils.config import MSDYOLOConfig
+from msdyolo.utils.loss import ComputeLoss
+from msdyolo.utils.trainer import MSDYOLOTrainer
 
 
 def generatecsllabels(anglerad, numclasses=180, u=6.0):
@@ -137,7 +137,7 @@ def device():
 
 @pytest.fixture
 def modelconfig():
-    cfgpath = ROOT / "models" / "yolov5s.yaml"
+    cfgpath = ROOT / "configs" / "models" / "yolov5s.yaml"
     with cfgpath.open("r") as f:
         cfg = yaml.safe_load(f)
     cfg["nc"] = 16
@@ -154,7 +154,7 @@ def model(modelconfig, hypconfig, device):
 
 @pytest.fixture
 def hypconfig():
-    hyppath = ROOT / "data" / "hyps" / "obb" / "hyp.finetune_dota.yaml"
+    hyppath = ROOT / "msdyolo" / "data" / "hyps" / "obb" / "hyp.finetune_dota.yaml"
     with hyppath.open("r") as f:
         return yaml.safe_load(f)
 
@@ -474,9 +474,9 @@ class CheckP0A2Integration:
             return loss, loss.detach().repeat(4)
 
         # 通过直接调用matching验证索引唯一性
-        from utils.decoder import decodesparse
-        from utils.matching import matchpredictions
-        from utils.clearbranch import teacherforward
+        from msdyolo.utils.decoder import decodesparse
+        from msdyolo.utils.matching import matchpredictions
+        from msdyolo.utils.clearbranch import teacherforward
 
         teacher = teacherforward(controlledmodel, images, 300)
         controlledmodel.train()
@@ -507,9 +507,9 @@ class CheckP0A2Integration:
         """验证候选顺序改变后仍映射到同一GT（贪心一对一稳定性）。"""
         images, targets = controlledbatch
 
-        from utils.decoder import decodesparse
-        from utils.matching import matchpredictions
-        from utils.clearbranch import teacherforward
+        from msdyolo.utils.decoder import decodesparse
+        from msdyolo.utils.matching import matchpredictions
+        from msdyolo.utils.clearbranch import teacherforward
 
         # 第一次匹配
         teacher1 = teacherforward(controlledmodel, images, 300)
@@ -612,7 +612,7 @@ class CheckP0A2Integration:
         trainercb = MSDYOLOTrainer(model, configcb, device)
 
         # 使用包装计数器验证教师前向被调用
-        from utils.clearbranch import teacherforward
+        from msdyolo.utils.clearbranch import teacherforward
         callcount = [0]
         originalteacherforward = teacherforward
 
@@ -621,8 +621,8 @@ class CheckP0A2Integration:
             return originalteacherforward(model, images, topk)
 
         # 临时替换teacherforward
-        import utils.trainer
-        utils.trainer.teacherforward = countedteacherforward
+        import msdyolo.utils.trainer
+        msdyolo.utils.trainer.teacherforward = countedteacherforward
 
         try:
             resultcb = trainercb.processbatch(images, targets, computeloss)
@@ -634,7 +634,7 @@ class CheckP0A2Integration:
             assert resultcb["matchcount"] == 0
         finally:
             # 恢复原函数
-            utils.trainer.teacherforward = originalteacherforward
+            msdyolo.utils.trainer.teacherforward = originalteacherforward
 
         # full
         configfull = MSDYOLOConfig()

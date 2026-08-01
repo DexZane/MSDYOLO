@@ -2,18 +2,23 @@
 """MSDYOLO 的真实 YOLOv5-OBB 训练入口。"""
 
 import argparse
-import sys
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 import yaml
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
-
 from msdyolo.utils.config import MSDYOLOConfig
+
+
+def training_health_message(distillation_enabled: bool, epoch_matches: int, target_count: int) -> str | None:
+    """返回仅适用于蒸馏训练的零匹配 epoch 健康警告。"""
+    if not distillation_enabled or target_count <= 0 or epoch_matches != 0:
+        return None
+    return (
+        "Warning: distillation received targets="
+        f"{target_count} but accumulated match=0 for this epoch"
+    )
 
 
 def trainonebatch(model, trainer, computeloss, images, targets, optimizer, device):
@@ -251,6 +256,8 @@ def main():
     loginterval = config.get("profiling.loginterval", 10)
 
     for epoch in range(epochs):
+        epochtargetcount = 0
+        epochmatchcount = 0
         for batchindex, (images, targets, paths, shapes) in enumerate(dataloader):
             images = images.to(device, non_blocking=True).float() / 255.0
             lastresult = trainonebatch(
@@ -262,6 +269,8 @@ def main():
                 optimizer,
                 device,
             )
+            epochtargetcount += len(targets)
+            epochmatchcount += lastresult["matchcount"]
             if arguments.singlebatch:
                 print(f"Single batch training completed:")
                 print(f"  loss={lastresult['loss'].item():.6f}")
@@ -293,6 +302,11 @@ def main():
                 )
 
         print(f"Epoch {epoch + 1}/{epochs} completed: loss={lastresult['loss'].item():.6f}")
+        message = training_health_message(
+            config.get("distillation.enabled"), epochmatchcount, epochtargetcount
+        )
+        if message is not None:
+            print(message)
 
     # 保存最终权重
     savedir = Path("runs/train/exp/weights")

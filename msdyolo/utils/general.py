@@ -36,7 +36,7 @@ from msdyolo.utils.nms_rotated import obb_nms
 
 # Settings
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[1]  # YOLOv5 root directory
+ROOT = FILE.parents[2]  # repository root directory
 NUM_THREADS = min(8, max(1, os.cpu_count() - 1))  # number of YOLOv5 multiprocessing threads
 
 torch.set_printoptions(linewidth=320, precision=5, profile='long')
