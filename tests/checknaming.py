@@ -9,7 +9,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHONFILES = [
-    *sorted((ROOT / "utils").glob("*.py")),
+    *sorted((ROOT / "msdyolo" / "utils").glob("*.py")),
     *sorted((ROOT / "tests").glob("check*.py")),
 ]
 OWNEDUTILS = {
@@ -74,7 +74,11 @@ def pythonblocks(document):
 class CheckNaming:
 
     def checkownedpythonfilenames(self):
-        assert {path.name for path in (ROOT / "utils").glob("*.py") if path.name in OWNEDUTILS} == OWNEDUTILS
+        assert {
+            path.name
+            for path in (ROOT / "msdyolo" / "utils").glob("*.py")
+            if path.name in OWNEDUTILS
+        } == OWNEDUTILS
         assert all("_" not in path.stem for path in (ROOT / "tests").glob("check*.py"))
 
     def checkdefinitionsargumentsvariablesandselfattributes(self):

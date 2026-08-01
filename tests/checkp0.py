@@ -4,11 +4,11 @@ import pytest
 import torch
 import torch.nn as nn
 
-from utils.clearbranch import ClearBranchForward
-from utils.config import MSDYOLOConfig
-from utils.degradation import ImageDegradation
-from utils.sparse import PredictionMatcher, SparsePredictionExtractor
-from utils.trainer import MSDYOLOTrainer
+from msdyolo.utils.clearbranch import ClearBranchForward
+from msdyolo.utils.config import MSDYOLOConfig
+from msdyolo.utils.degradation import ImageDegradation
+from msdyolo.utils.sparse import PredictionMatcher, SparsePredictionExtractor
+from msdyolo.utils.trainer import MSDYOLOTrainer
 
 
 class SimpleModel(nn.Module):

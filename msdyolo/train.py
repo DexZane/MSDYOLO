@@ -2,16 +2,10 @@
 """MSDYOLO 的真实 YOLOv5-OBB 训练入口。"""
 
 import argparse
-import sys
-from pathlib import Path
 
 import torch
 import torch.nn as nn
 import yaml
-
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
 
 from msdyolo.utils.config import MSDYOLOConfig
 

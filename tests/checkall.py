@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from utils.config import MSDYOLOConfig
+from msdyolo.utils.config import MSDYOLOConfig
 
 
 ROOT = Path(__file__).resolve().parents[1]

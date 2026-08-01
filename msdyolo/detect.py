@@ -14,7 +14,6 @@ Usage:
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import cv2
@@ -22,10 +21,7 @@ import torch
 import torch.backends.cudnn as cudnn
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # YOLOv5 root directory
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # add ROOT to PATH
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
+ROOT = FILE.parents[1]
 
 from msdyolo.models.common import DetectMultiBackend
 from msdyolo.utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
@@ -38,7 +34,7 @@ from msdyolo.utils.rboxs_utils import poly2rbox, rbox2poly
 
 @torch.no_grad()
 def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
-        source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
+        source=ROOT / 'msdyolo/data/images',  # file/dir/URL/glob, 0 for webcam
         imgsz=(640, 640),  # inference size (height, width)
         conf_thres=0.25,  # confidence threshold
         iou_thres=0.45,  # NMS IOU threshold

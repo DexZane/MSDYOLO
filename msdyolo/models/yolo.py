@@ -7,15 +7,11 @@ Usage:
 """
 
 import argparse
-import sys
 from copy import deepcopy
 from pathlib import Path
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[1]  # YOLOv5 root directory
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # add ROOT to PATH
-# ROOT = ROOT.relative_to(Path.cwd())  # relative
+ROOT = FILE.parents[2]
 
 from msdyolo.models.common import *
 from msdyolo.models.experimental import *
@@ -345,7 +341,7 @@ if __name__ == '__main__':
 
     # Test all models
     if opt.test:
-        for cfg in Path(ROOT / 'models').rglob('yolo*.yaml'):
+        for cfg in Path(ROOT / 'configs/models').rglob('yolo*.yaml'):
             try:
                 _ = Model(cfg)
             except Exception as e:

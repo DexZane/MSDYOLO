@@ -2,16 +2,13 @@
 # Usage: $ python utils/aws/resume.py
 
 import os
-import sys
 from pathlib import Path
 
 import torch
 import yaml
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[2]  # YOLOv5 root directory
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))  # add ROOT to PATH
+ROOT = FILE.parents[3]  # repository root directory
 
 port = 0  # --master_port
 path = Path('').resolve()

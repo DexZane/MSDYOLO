@@ -25,15 +25,15 @@ class MSDYOLOConfig:
                 "phase": 1,
             },
             "training": {
-                "data": "data/dota-test.yaml",
-                "cfg": "models/yolov5s.yaml",
+                "data": "msdyolo/data/dota-test.yaml",
+                "cfg": "configs/models/yolov5s.yaml",
                 "weights": "",
                 "epochs": 300,
                 "batchsize": 2,
                 "imagesize": 1024,
                 "device": "0",
                 "workers": 0,
-                "hyp": "data/hyps/obb/hyp.finetune_dota.yaml",
+                "hyp": "msdyolo/data/hyps/obb/hyp.finetune_dota.yaml",
             },
             "degradation": {
                 "enabled": False,

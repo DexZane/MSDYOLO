@@ -5,8 +5,8 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 
-from utils.config import MSDYOLOConfig
-from utils.trainer import MSDYOLOTrainer
+from msdyolo.utils.config import MSDYOLOConfig
+from msdyolo.utils.trainer import MSDYOLOTrainer
 
 
 class BaselineModel(nn.Module):

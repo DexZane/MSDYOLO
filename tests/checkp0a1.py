@@ -6,11 +6,11 @@ import pytest
 import torch
 import torch.nn as nn
 
-from utils.clearbranch import teacherforward
-from utils.decoder import SparsePredictions, decodesparse
-from utils.distillation import computefourcomponentloss
-from utils.matching import DistillationMatch, matchpredictions
-from utils.routing import computerouting
+from msdyolo.utils.clearbranch import teacherforward
+from msdyolo.utils.decoder import SparsePredictions, decodesparse
+from msdyolo.utils.distillation import computefourcomponentloss
+from msdyolo.utils.matching import DistillationMatch, matchpredictions
+from msdyolo.utils.routing import computerouting
 
 
 class TinyHead:
@@ -110,9 +110,9 @@ def maketargets():
 class CheckDecoder:
 
     def checkdecodedxywhmatchesrealyoloevaloutput(self):
-        from models.yolo import Model
+        from msdyolo.models.yolo import Model
 
-        model = Model("models/yolov5n.yaml", nc=16).eval()
+        model = Model("configs/models/yolov5n.yaml", nc=16).eval()
         images = torch.zeros(1, 3, 64, 64)
         with torch.no_grad():
             decoded, rawoutputs = model(images)
@@ -121,9 +121,9 @@ class CheckDecoder:
         assert torch.allclose(sparse.values[0, :, :4], expected, atol=1e-5)
 
     def checknoninplacehalfdecodermatchesrealyolo(self):
-        from models.yolo import Model
+        from msdyolo.models.yolo import Model
 
-        model = Model("models/yolov5n.yaml", nc=16).eval().half()
+        model = Model("configs/models/yolov5n.yaml", nc=16).eval().half()
         model.model[-1].inplace = False
         images = torch.zeros(1, 3, 64, 64).half()
         with torch.no_grad():
