@@ -181,12 +181,21 @@ def _exists(path: Path) -> bool:
     return path.exists() or path.is_symlink()
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    """Return whether ``path`` is below ``root`` on Python 3.8+."""
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def _validate_output_path(dataset_dir: Path, split_dir: Path) -> None:
     raw_roots = ((dataset_dir / "train").resolve(), (dataset_dir / "val").resolve())
     replaces_dataset = split_dir == dataset_dir or split_dir in dataset_dir.parents
     overlaps_raw_split = any(
         split_dir == root
-        or split_dir.is_relative_to(root)
+        or _is_relative_to(split_dir, root)
         or split_dir in root.parents
         for root in raw_roots
     )
