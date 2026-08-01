@@ -10,6 +10,7 @@ build/
 
 # Training
 runs/
+training.log
 wandb/
 *.weights
 *.pt
