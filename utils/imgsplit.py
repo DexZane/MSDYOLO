@@ -130,17 +130,26 @@ def split_single_image(args):
                     transformed = transform_object_coords(obj, x, y)
                     patch_objects.append(transformed)
 
-            # Save labels
+            # Save labels (normalized coordinates for YOLOv5-OBB)
             if patch_objects:
                 label_path_out = label_output / f"{patch_name}.txt"
                 with open(label_path_out, 'w') as f:
-                    f.write("imagesource:DOTA-v1.5\n")
-                    f.write(f"gsd:null\n")
                     for obj in patch_objects:
-                        f.write(f"{obj['x1']:.1f} {obj['y1']:.1f} "
-                               f"{obj['x2']:.1f} {obj['y2']:.1f} "
-                               f"{obj['x3']:.1f} {obj['y3']:.1f} "
-                               f"{obj['x4']:.1f} {obj['y4']:.1f} "
+                        # Normalize coordinates to [0, 1]
+                        x1_norm = obj['x1'] / subsize
+                        y1_norm = obj['y1'] / subsize
+                        x2_norm = obj['x2'] / subsize
+                        y2_norm = obj['y2'] / subsize
+                        x3_norm = obj['x3'] / subsize
+                        y3_norm = obj['y3'] / subsize
+                        x4_norm = obj['x4'] / subsize
+                        y4_norm = obj['y4'] / subsize
+
+                        # YOLOv5-OBB format: x1 y1 x2 y2 x3 y3 x4 y4 class difficult
+                        f.write(f"{x1_norm:.6f} {y1_norm:.6f} "
+                               f"{x2_norm:.6f} {y2_norm:.6f} "
+                               f"{x3_norm:.6f} {y3_norm:.6f} "
+                               f"{x4_norm:.6f} {y4_norm:.6f} "
                                f"{obj['class']} {obj['difficult']}\n")
 
             patch_count += 1
