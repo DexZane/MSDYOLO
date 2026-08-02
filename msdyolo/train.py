@@ -289,6 +289,10 @@ def main():
     savedir.mkdir(parents=True, exist_ok=True)
     resultsfile = savedir / "results.csv"
 
+    # 最佳模型追踪
+    best_loss = float('inf')
+    best_epoch = 0
+
     # CSV列标题
     headers = [
         "epoch",
@@ -420,10 +424,20 @@ def main():
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
         }
+
+        # 保存last.pt（最新权重）
         torch.save(checkpoint, savedir / "last.pt")
 
-    # 最后一个 epoch 的权重已经在循环末尾持久化。
+        # 保存best.pt（最佳权重）
+        if avg_total_loss < best_loss:
+            best_loss = avg_total_loss
+            best_epoch = epoch + 1
+            torch.save(checkpoint, savedir / "best.pt")
+            print(f"New best model saved (epoch {best_epoch}, loss={best_loss:.6f})")
+
+    # 训练完成总结
     print(f"Training completed. Weights saved to {savedir / 'last.pt'}")
+    print(f"Best model: epoch {best_epoch}, loss={best_loss:.6f} -> {savedir / 'best.pt'}")
 
 
 if __name__ == "__main__":
