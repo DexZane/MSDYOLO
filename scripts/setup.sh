@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepare DOTA v1.5 and start the canonical full-MSD cloud training job.
+# Prepare DIOR dataset and start the canonical full-MSD cloud training job.
 
 set -euo pipefail
 
@@ -7,11 +7,10 @@ usage() {
     cat <<'EOF'
 Usage: bash scripts/setup.sh [options]
 
-Prepare DOTA v1.5 patches and launch full MSDYOLO training.
+Prepare DIOR dataset and launch full MSDYOLO training.
 
 Options:
   --prepare-only       Install and prepare data, but do not start training.
-  --force-resplit      Rebuild the prepared DOTA split even when it is current.
   --foreground         Run training in this terminal instead of the background.
   --config PATH        Training config (default: configs/train/full.yaml).
   -h, --help           Show this help and exit.
@@ -19,7 +18,6 @@ EOF
 }
 
 PREPARE_ONLY=false
-FORCE_RESPLIT=false
 FOREGROUND=false
 CONFIG="configs/train/full.yaml"
 
@@ -27,9 +25,6 @@ while (($#)); do
     case "$1" in
         --prepare-only)
             PREPARE_ONLY=true
-            ;;
-        --force-resplit)
-            FORCE_RESPLIT=true
             ;;
         --foreground)
             FOREGROUND=true
@@ -57,8 +52,7 @@ done
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-DATASET_DIR="$PROJECT_DIR/dataset/DOTA"
-SPLIT_DIR="$DATASET_DIR/split"
+DATASET_DIR="$PROJECT_DIR/dataset/DIOR"
 RUN_DIR="$PROJECT_DIR/runs/setup"
 PID_FILE="$RUN_DIR/training.pid"
 LOCK_DIR="$RUN_DIR/.launch.lock"
@@ -153,35 +147,70 @@ checkexistingtraining
 echo "Installing cloud dependencies..."
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
 "$PYTHON_BIN" -m pip install -q -e .
-"$PYTHON_BIN" -m pip install -q openxlab
-# Dependency resolution may upgrade setuptools while installing the editable
-# package or OpenDataLab. Restore the Python 3.12 compatibility pin last.
+"$PYTHON_BIN" -m pip install -q kaggle
+# Dependency resolution may upgrade setuptools. Restore the pin last.
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
 
-if [[ ! -d "$DATASET_DIR/train/images" \
-    || ! -d "$DATASET_DIR/train/labelTxt" \
-    || ! -d "$DATASET_DIR/val/images" ]]; then
-    echo "Downloading DOTA v1.5..."
-    "$PYTHON_BIN" -m msdyolo.data.scripts.download_dota "$DATASET_DIR"
-fi
+# Download DIOR-R from Kaggle if not already present
+if [[ ! -d "$DATASET_DIR/train" \
+    || ! -d "$DATASET_DIR/val" \
+    || ! -d "$DATASET_DIR/test" ]]; then
+    echo "Downloading DIOR-R dataset from Kaggle..."
+    "$PYTHON_BIN" - <<'PYEOF'
+import os
+import sys
+import zipfile
+from pathlib import Path
 
-PREPARE_ARGS=(
-    -m msdyolo.data.scripts.prepare_dota
-    --dataset "$DATASET_DIR"
-    --output "$SPLIT_DIR"
-    --subsize 1024
-    --gap 200
-    --num-process 4
+# Set Kaggle API credentials
+os.environ["KAGGLE_USERNAME"] = "KGAT_be2904c745791157e2023e2a117180f2"
+os.environ["KAGGLE_KEY"] = "KGAT_be2904c745791157e2023e2a117180f2"
+
+# Import after setting environment
+from kaggle.api.kaggle_api_extended import KaggleApi
+
+target = Path("dataset/DIOR")
+temp_zip = target.parent / "dior-r-dataset-yolov11-obb-format.zip"
+
+target.mkdir(parents=True, exist_ok=True)
+
+# Download dataset
+api = KaggleApi()
+api.authenticate()
+
+print("Downloading DIOR-R from Kaggle (redzapdos123/dior-r-dataset-yolov11-obb-format)...")
+api.dataset_download_files(
+    "redzapdos123/dior-r-dataset-yolov11-obb-format",
+    path=str(target.parent),
+    unzip=False
 )
-if [[ "$FORCE_RESPLIT" == true ]]; then
-    PREPARE_ARGS+=(--force-resplit)
-fi
 
-echo "Preparing validated DOTA patches..."
-"$PYTHON_BIN" "${PREPARE_ARGS[@]}"
+# Extract
+print(f"Extracting {temp_zip.name}...")
+with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+    zip_ref.extractall(target)
+
+# Cleanup
+temp_zip.unlink()
+
+# Check if extracted into a subdirectory (YOLODIOR-R/)
+subdir = target / "YOLODIOR-R"
+if subdir.exists():
+    print("Moving files from YOLODIOR-R/ to dataset/DIOR/...")
+    for item in subdir.iterdir():
+        if item.name not in ['.DS_Store']:
+            item.rename(target / item.name)
+    subdir.rmdir()
+
+print("DIOR-R dataset ready.")
+print(f"  Train images: {len(list((target / 'train' / 'images').glob('*.jpg')))}")
+print(f"  Val images: {len(list((target / 'val' / 'images').glob('*.jpg')))}")
+print(f"  Test images: {len(list((target / 'test' / 'images').glob('*.jpg')))}")
+PYEOF
+fi
 
 if [[ "$PREPARE_ONLY" == true ]]; then
-    echo "DOTA preparation complete. Training was not started (--prepare-only)."
+    echo "DIOR preparation complete. Training was not started (--prepare-only)."
     exit 0
 fi
 

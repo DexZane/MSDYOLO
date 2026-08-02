@@ -1,4 +1,4 @@
-"""教师、学生稀疏候选与 DOTA 目标的一对一匹配。"""
+"""教师、学生稀疏候选与目标的一对一匹配。"""
 
 import math
 from dataclasses import dataclass

@@ -56,7 +56,7 @@ class CheckPackaging:
             for value in metadata.get_all("Classifier", [])
         )
         for asset in (
-            "msdyolo/data/dota.yaml",
+            "msdyolo/data/dior.yaml",
             "msdyolo/data/hyps/obb/hyp.finetune_dota.yaml",
             "msdyolo/utils/nms_rotated/src/nms_rotated_cpu.cpp",
             "msdyolo/utils/nms_rotated/src/nms_rotated_cuda.cu",

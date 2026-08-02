@@ -44,10 +44,10 @@ class CheckDelivery:
         assert config.get("clearbranch.enabled")
         assert config.get("distillation.enabled")
         assert config.get("training.workers") == 4
-        assert config.get("training.data") == "msdyolo/data/dota.yaml"
+        assert config.get("training.data") == "msdyolo/data/dior.yaml"
         assert config.get("training.cfg") == "configs/models/yolov5s.yaml"
         assert config.get("training.weights") == "yolov5s.pt"
-        assert config.get("training.teacherweights") == "runs/train/dota_teacher/weights/last.pt"
+        assert config.get("training.teacherweights") == "runs/train/dior_teacher/weights/last.pt"
         assert config.get("training.epochs") == 200
         assert config.get("training.batchsize") == 16
         assert config.get("training.imagesize") == 1024
@@ -55,9 +55,9 @@ class CheckDelivery:
 
     def checkteacherconfigisacleancloudbaseline(self):
         config = MSDYOLOConfig(ROOT / "configs" / "train" / "teacher.yaml")
-        assert config.get("experiment.name") == "dota_teacher"
+        assert config.get("experiment.name") == "dior_teacher"
         assert config.get("experiment.phase") == 1
-        assert config.get("training.data") == "msdyolo/data/dota.yaml"
+        assert config.get("training.data") == "msdyolo/data/dior.yaml"
         assert config.get("training.weights") == "yolov5s.pt"
         assert config.get("training.batchsize") == 16
         assert not config.get("degradation.enabled")
@@ -71,7 +71,7 @@ class CheckDelivery:
             assert config.get("degradation.downsample.enabled"), name
             assert config.get("degradation.noise.enabled"), name
 
-    def checkdotatestdatasetexists(self):
+    def checkdiortestdatasetexists(self):
         dataconfig = yaml.safe_load((ROOT / "tests" / "fixtures" / "dota.yaml").read_text())
         dataroot = ROOT / dataconfig["path"]
         assert len(list((dataroot / "images").glob("test*.png"))) == 5

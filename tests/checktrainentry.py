@@ -21,7 +21,7 @@ class CheckTrainEntry:
     def checkfulltrainingrequiresanexistingteachercheckpoint(self, tmp_path):
         training = {"teacherweights": ""}
 
-        with pytest.raises(ValueError, match="DOTA teacher checkpoint"):
+        with pytest.raises(ValueError, match="teacher checkpoint"):
             validateteacherweights(training, True)
 
         missing = tmp_path / "missing.pt"
@@ -32,4 +32,4 @@ class CheckTrainEntry:
     def checkteachercheckpointsuseitsnamedrundirectory(self):
         config = MSDYOLOConfig("configs/train/teacher.yaml")
 
-        assert trainingcheckpointdirectory(config) == "runs/train/dota_teacher/weights"
+        assert trainingcheckpointdirectory(config) == "runs/train/dior_teacher/weights"

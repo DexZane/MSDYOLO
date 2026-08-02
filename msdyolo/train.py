@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import csv
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 import yaml
+from tqdm import tqdm
 
 from msdyolo.utils.config import MSDYOLOConfig
 
@@ -168,7 +170,7 @@ def loadmodel(training, hyp, datadict, device):
 
 
 def createdataloader(model, training, hyp, datadict, imagesize):
-    """创建真实 DOTA dataloader。"""
+    """创建真实 dataloader。"""
     from msdyolo.utils.datasets import create_dataloader
     from msdyolo.utils.general import check_img_size, colorstr
 
@@ -194,7 +196,7 @@ def createdataloader(model, training, hyp, datadict, imagesize):
 
 
 def rundemo(config):
-    """运行不依赖 DOTA 的最小包装器演示。"""
+    """运行不依赖数据集的最小包装器演示。"""
     from msdyolo.utils.trainer import MSDYOLOTrainer
 
     class DummyYOLOModel(nn.Module):
@@ -281,12 +283,53 @@ def main():
 
     epochs = 1 if arguments.singlebatch else training["epochs"]
     lastresult = None
-    loginterval = config.get("profiling.loginterval", 10)
+
+    # 初始化CSV日志文件（YOLOv5标准格式）
+    savedir = Path(trainingcheckpointdirectory(config))
+    savedir.mkdir(parents=True, exist_ok=True)
+    resultsfile = savedir / "results.csv"
+
+    # CSV列标题
+    headers = [
+        "epoch",
+        "train/box_loss",
+        "train/obj_loss",
+        "train/cls_loss",
+        "train/total_loss",
+        "distill/total",
+        "distill/cls",
+        "distill/center",
+        "distill/scale",
+        "distill/angle",
+        "distill/match",
+        "distill/survival",
+        "distill/angrel"
+    ]
+
+    # 写入CSV头
+    with open(resultsfile, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
 
     for epoch in range(epochs):
         epochtargetcount = 0
         epochmatchcount = 0
-        for batchindex, (images, targets, paths, shapes) in enumerate(dataloader):
+
+        # 累积epoch级别的损失
+        epoch_detection_loss = 0.0
+        epoch_distill_loss = 0.0
+        epoch_cls_loss = 0.0
+        epoch_center_loss = 0.0
+        epoch_scale_loss = 0.0
+        epoch_angle_loss = 0.0
+        epoch_survival_sum = 0.0
+        epoch_anglereliability_sum = 0.0
+        batch_count = 0
+
+        # 创建tqdm进度条
+        pbar = tqdm(dataloader, desc=f"Epoch {epoch + 1}/{epochs}", ncols=120)
+
+        for batchindex, (images, targets, paths, shapes) in enumerate(pbar):
             images = images.to(device, non_blocking=True).float() / 255.0
             lastresult = trainonebatch(
                 model,
@@ -299,6 +342,18 @@ def main():
             )
             epochtargetcount += len(targets)
             epochmatchcount += lastresult["matchcount"]
+
+            # 累积损失
+            epoch_detection_loss += lastresult['detectionloss'].item()
+            epoch_distill_loss += lastresult['distillationloss'].item()
+            epoch_cls_loss += lastresult['classificationloss'].item()
+            epoch_center_loss += lastresult['centerloss'].item()
+            epoch_scale_loss += lastresult['scaleloss'].item()
+            epoch_angle_loss += lastresult['angleloss'].item()
+            epoch_survival_sum += lastresult['meansurvival']
+            epoch_anglereliability_sum += lastresult['meananglereliability']
+            batch_count += 1
+
             if arguments.singlebatch:
                 print(f"Single batch training completed:")
                 print(f"  loss={lastresult['loss'].item():.6f}")
@@ -313,23 +368,45 @@ def main():
                 print(f"  meananglereliability={lastresult['meananglereliability']:.6f}")
                 return
 
-            # 常规训练：按loginterval输出完整指标
-            if batchindex % loginterval == 0:
-                print(
-                    f"Epoch {epoch + 1}/{epochs} Batch {batchindex}/{len(dataloader)}: "
-                    f"loss={lastresult['loss'].item():.6f} "
-                    f"det={lastresult['detectionloss'].item():.6f} "
-                    f"distill={lastresult['distillationloss'].item():.6f} "
-                    f"cls={lastresult['classificationloss'].item():.6f} "
-                    f"ctr={lastresult['centerloss'].item():.6f} "
-                    f"scl={lastresult['scaleloss'].item():.6f} "
-                    f"ang={lastresult['angleloss'].item():.6f} "
-                    f"match={lastresult['matchcount']} "
-                    f"surv={lastresult['meansurvival']:.4f} "
-                    f"angrel={lastresult['meananglereliability']:.4f}"
-                )
+            # 更新进度条显示的核心指标
+            pbar.set_postfix({
+                'loss': f"{lastresult['loss'].item():.4f}",
+                'det': f"{lastresult['detectionloss'].item():.4f}",
+                'dist': f"{lastresult['distillationloss'].item():.4f}",
+                'match': lastresult['matchcount']
+            })
 
-        print(f"Epoch {epoch + 1}/{epochs} completed: loss={lastresult['loss'].item():.6f}")
+        # 计算epoch平均值
+        avg_detection_loss = epoch_detection_loss / batch_count
+        avg_distill_loss = epoch_distill_loss / batch_count
+        avg_cls_loss = epoch_cls_loss / batch_count
+        avg_center_loss = epoch_center_loss / batch_count
+        avg_scale_loss = epoch_scale_loss / batch_count
+        avg_angle_loss = epoch_angle_loss / batch_count
+        avg_survival = epoch_survival_sum / batch_count
+        avg_anglereliability = epoch_anglereliability_sum / batch_count
+        avg_total_loss = avg_detection_loss + avg_distill_loss
+
+        # 写入CSV（YOLOv5兼容格式 + MSDYOLO扩展）
+        with open(resultsfile, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                epoch + 1,
+                f"{avg_detection_loss:.6f}",  # train/box_loss (检测损失)
+                "0.0",  # train/obj_loss (MSDYOLO不使用objectness)
+                "0.0",  # train/cls_loss (分类损失已包含在box_loss中)
+                f"{avg_total_loss:.6f}",  # train/total_loss
+                f"{avg_distill_loss:.6f}",  # distill/total_loss
+                f"{avg_cls_loss:.6f}",  # distill/cls_loss
+                f"{avg_center_loss:.6f}",  # distill/center_loss
+                f"{avg_scale_loss:.6f}",  # distill/scale_loss
+                f"{avg_angle_loss:.6f}",  # distill/angle_loss
+                epochmatchcount,  # distill/match_count
+                f"{avg_survival:.6f}",  # distill/mean_survival
+                f"{avg_anglereliability:.6f}"  # distill/mean_angle_reliability
+            ])
+
+        print(f"Epoch {epoch + 1}/{epochs} completed: loss={avg_total_loss:.6f}")
         message = training_health_message(
             config.get("distillation.enabled"), epochmatchcount, epochtargetcount
         )

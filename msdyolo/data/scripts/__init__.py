@@ -1,1 +1,1 @@
-"""Dataset download, preparation, and DOTA label-splitting helpers."""
+"""Dataset download and preparation helpers."""

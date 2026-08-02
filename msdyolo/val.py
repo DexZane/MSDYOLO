@@ -330,7 +330,7 @@ def run(data,
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default=ROOT / 'msdyolo/data/dota.yaml', help='dataset.yaml path')
+    parser.add_argument('--data', type=str, default=ROOT / 'msdyolo/data/dior.yaml', help='dataset.yaml path')
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/yolov5n_DroneVehicle/weights/best.pt', help='model.pt path(s)')
     parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=1024, help='inference size (pixels)')

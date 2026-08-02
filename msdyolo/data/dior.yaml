@@ -1,0 +1,42 @@
+# DIOR Dataset Configuration for Object Detection
+# Dataset: DIOR (Dataset for Object Detection in Aerial Images)
+# Paper: https://arxiv.org/abs/1909.00133
+# Classes: 20 categories
+
+path: dataset/DIOR
+train: train/images
+val: val/images
+test: test/images  # Optional
+
+# Classes (20 categories)
+nc: 20
+names: [
+  'airplane',
+  'airport',
+  'baseball-field',
+  'basketball-court',
+  'bridge',
+  'chimney',
+  'dam',
+  'expressway-service-area',
+  'expressway-toll-station',
+  'golf-course',
+  'ground-track-field',
+  'harbor',
+  'overpass',
+  'ship',
+  'stadium',
+  'storage-tank',
+  'tennis-court',
+  'train-station',
+  'vehicle',
+  'windmill'
+]
+
+# Dataset Info
+dataset: DIOR
+version: v1.0
+description: Dataset for Object Detection in Aerial Images (800x800 resolution)
+num_images: 23463
+image_size: 800
+format: horizontal_bbox  # DIOR使用水平框，不是旋转框

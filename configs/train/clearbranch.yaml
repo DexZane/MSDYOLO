@@ -3,7 +3,7 @@ experiment:
   description: MSDYOLO with degradation and a serial clear branch
   phase: 1
 training:
-  data: msdyolo/data/dota.yaml
+  data: msdyolo/data/dior.yaml
   cfg: configs/models/yolov5s.yaml
   weights: yolov5s.pt
   epochs: 200

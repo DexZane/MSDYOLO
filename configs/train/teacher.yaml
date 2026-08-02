@@ -1,9 +1,9 @@
 experiment:
-  name: dota_teacher
-  description: Clean DOTA v1.5 baseline used as the frozen full-MSD teacher
+  name: dior_teacher
+  description: Clean DIOR baseline used as the frozen full-MSD teacher
   phase: 1
 training:
-  data: msdyolo/data/dota.yaml
+  data: msdyolo/data/dior.yaml
   cfg: configs/models/yolov5s.yaml
   weights: yolov5s.pt
   epochs: 200

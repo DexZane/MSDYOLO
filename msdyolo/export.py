@@ -327,7 +327,7 @@ def export_engine(model, im, file, train, half, simplify, workspace=4, verbose=F
 
 
 @torch.no_grad()
-def run(data=ROOT / 'msdyolo/data/dota.yaml',  # 'dataset.yaml path'
+def run(data=ROOT / 'msdyolo/data/dior.yaml',  # 'dataset.yaml path'
         weights=ROOT / 'yolov5s.pt',  # weights path
         imgsz=(640, 640),  # image (height, width)
         batch_size=1,  # batch size
@@ -421,7 +421,7 @@ def run(data=ROOT / 'msdyolo/data/dota.yaml',  # 'dataset.yaml path'
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, default=ROOT / 'msdyolo/data/dota.yaml', help='dataset.yaml path')
+    parser.add_argument('--data', type=str, default=ROOT / 'msdyolo/data/dior.yaml', help='dataset.yaml path')
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/yolov5m_finetune_dotav1.5/weights/best.pt', help='model.pt path(s)')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[1024, 1024], help='image (h, w)')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')

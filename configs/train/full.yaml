@@ -3,10 +3,10 @@ experiment:
   description: Full MSDYOLO with degradation, clear branch, and distillation
   phase: 2
 training:
-  data: msdyolo/data/dota.yaml
+  data: msdyolo/data/dior.yaml
   cfg: configs/models/yolov5s.yaml
   weights: yolov5s.pt
-  teacherweights: runs/train/dota_teacher/weights/last.pt
+  teacherweights: runs/train/dior_teacher/weights/last.pt
   epochs: 200
   batchsize: 16
   imagesize: 1024

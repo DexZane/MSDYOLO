@@ -65,13 +65,45 @@ python -m msdyolo.train \
 The teacher checkpoint remains `runs/train/dota_teacher/weights/last.pt` and
 is required by the full configuration.
 
-## Dataset and label contract
+## Supported Datasets
+
+### DOTA v1.5 (Default)
 
 Raw data is downloaded to `dataset/DOTA`. The preparer produces
 `dataset/DOTA/split/{train,val}/{images,labelTxt}` and records the source
 snapshot in `.msdyolo-split.json`. DOTA v1.5 validation images are official
 unlabelled data, so an empty `val/labelTxt` directory is valid; training labels
 must be present.
+
+### DIOR (Alternative - Lower Training Cost)
+
+DIOR is an oriented bounding box dataset with 23,463 images (800×800), 20 classes.
+Training cost is ~18% lower than DOTA v1.5 due to smaller image size and no patch splitting required.
+
+**Download DIOR:**
+```bash
+python3 msdyolo/data/scripts/download_dior.py
+```
+
+The script automatically:
+- Downloads from Google Drive (~4-5 GB)
+- Extracts and normalizes directory structure
+- Selects Oriented Bounding Boxes (OBB) annotations for MSDYOLO compatibility
+
+**Train with DIOR:**
+```bash
+python -m msdyolo.train \
+  --data msdyolo/data/dior.yaml \
+  --cfg configs/models/yolov5s.yaml \
+  --device 0
+```
+
+See [docs/DIOR_DATASET.md](docs/DIOR_DATASET.md) for detailed usage instructions.
+
+⚠️ **Note**: DIOR provides both horizontal and oriented bounding boxes. The download script
+uses OBB by default to match MSDYOLO's rotated object detection architecture.
+
+## Dataset and label contract
 
 Every DOTA label line is:
 
