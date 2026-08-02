@@ -69,6 +69,7 @@ def mergedtraining(config, arguments):
         "weights": arguments.weights
         if arguments.weights is not None
         else config.get("training.weights", ""),
+        "teacherweights": config.get("training.teacherweights", ""),
         "device": arguments.device or config.get("training.device", "cpu"),
         "batchsize": arguments.batchsize
         if arguments.batchsize is not None
@@ -91,6 +92,25 @@ def validatepaths(training):
             raise FileNotFoundError(f"{key} file not found: {value}")
     if training["weights"] and not Path(training["weights"]).exists():
         raise FileNotFoundError(f"weights file not found: {training['weights']}")
+
+
+def validateteacherweights(training, distillationenabled):
+    """Require a DOTA-adapted checkpoint whenever distillation is enabled."""
+    if not distillationenabled:
+        return
+    teacherweights = training.get("teacherweights", "")
+    if not teacherweights:
+        raise ValueError(
+            "Full distillation training requires a DOTA teacher checkpoint; "
+            "train configs/train/teacher.yaml first and set training.teacherweights"
+        )
+    if not Path(teacherweights).exists():
+        raise FileNotFoundError(f"teacherweights file not found: {teacherweights}")
+
+
+def trainingcheckpointdirectory(config):
+    """Return the stable checkpoint directory for a named experiment."""
+    return f"runs/train/{config.get('experiment.name')}/weights"
 
 
 def createoptimizer(model, hyp):
@@ -217,6 +237,7 @@ def main():
         rundemo(config)
         return
     validatepaths(training)
+    validateteacherweights(training, config.get("distillation.enabled"))
     if arguments.dryrun:
         print("Dry run completed: configuration and paths are valid")
         return
@@ -231,7 +252,12 @@ def main():
         hyp = yaml.safe_load(stream)
     datadict = check_dataset(training["data"])
     model = loadmodel(training, hyp, datadict, device)
-    trainer = MSDYOLOTrainer(model, config, device)
+    teachermodel = None
+    if config.get("distillation.enabled"):
+        teachertraining = dict(training)
+        teachertraining["weights"] = training["teacherweights"]
+        teachermodel = loadmodel(teachertraining, hyp, datadict, device)
+    trainer = MSDYOLOTrainer(model, config, device, teachermodel=teachermodel)
 
     # 单批次模式启用详细日志
     if arguments.singlebatch:
@@ -310,15 +336,16 @@ def main():
         if message is not None:
             print(message)
 
-    # 保存最终权重
-    savedir = Path("runs/train/exp/weights")
-    savedir.mkdir(parents=True, exist_ok=True)
-    checkpoint = {
-        "epoch": epochs,
-        "model": model.state_dict(),
-        "optimizer": optimizer.state_dict(),
-    }
-    torch.save(checkpoint, savedir / "last.pt")
+        savedir = Path(trainingcheckpointdirectory(config))
+        savedir.mkdir(parents=True, exist_ok=True)
+        checkpoint = {
+            "epoch": epoch + 1,
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+        }
+        torch.save(checkpoint, savedir / "last.pt")
+
+    # 最后一个 epoch 的权重已经在循环末尾持久化。
     print(f"Training completed. Weights saved to {savedir / 'last.pt'}")
 
 

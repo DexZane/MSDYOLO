@@ -100,23 +100,54 @@ def matchpredictions(
             print(f"  Confidence: min={confidence.min():.6f} max={confidence.max():.6f} mean={confidence.mean():.6f}")
             print(f"  Targets: {len(targetindices)}")
 
-        for teacherindex in range(teachervalues.shape[0]):
-            if confidence[teacherindex].item() < confidencethreshold:
-                filteredbyconfidence += 1
+        teacherindices = torch.where(confidence >= confidencethreshold)[0]
+        filteredbyconfidence += teachervalues.shape[0] - teacherindices.numel()
+        if teacherindices.numel() == 0:
+            continue
+
+        # Copy compact candidate and GT snapshots once.  Calling .item()/.cpu()
+        # inside the pair loop forces thousands of CUDA synchronizations per batch.
+        teacherpayload = torch.cat(
+            (
+                teacherindices.unsqueeze(1).to(teachervalues.dtype),
+                teachervalues[teacherindices, :4],
+                teacherangles[teacherindices].unsqueeze(1),
+                teacherclasses[teacherindices].unsqueeze(1).to(teachervalues.dtype),
+            ),
+            1,
+        ).detach().cpu()
+        targetpayload = torch.cat(
+            (
+                targetindices.unsqueeze(1).to(targets.dtype),
+                targets[targetindices, 1:7],
+            ),
+            1,
+        ).detach().cpu()
+
+        for teacherrow in teacherpayload:
+            teacherindex = int(teacherrow[0])
+            teacherbox = teacherrow[1:6].tolist()
+            teacherclass = int(teacherrow[6])
+            matchingtargets = targetpayload[targetpayload[:, 1].long() == teacherclass]
+            filteredbyclass += targetpayload.shape[0] - matchingtargets.shape[0]
+            if matchingtargets.numel() == 0:
                 continue
-            for targetindex in targetindices.tolist():
-                target = targets[targetindex]
-                if teacherclasses[teacherindex].item() != int(target[1].item()):
-                    filteredbyclass += 1
+
+            # Positive rotated IoU requires the circumcircles to overlap.  This
+            # cheap conservative filter avoids most Shapely polygon operations.
+            teacherdiagonal = math.hypot(teacherbox[2], teacherbox[3])
+            for targetrow in matchingtargets:
+                targetbox = targetrow[2:7].tolist()
+                targetdiagonal = math.hypot(targetbox[2], targetbox[3])
+                centerdistance = math.hypot(
+                    teacherbox[0] - targetbox[0], teacherbox[1] - targetbox[1]
+                )
+                if centerdistance > (teacherdiagonal + targetdiagonal) / 2.0:
+                    filteredbyiou += 1
                     continue
-                teacherbox = [
-                    *teachervalues[teacherindex, :4].detach().cpu().tolist(),
-                    teacherangles[teacherindex].item(),
-                ]
-                targetbox = target[2:7].detach().cpu().tolist()
                 iou = rotatediou(teacherbox, targetbox)
                 if iou >= iouthreshold:
-                    teachercandidates.append((-iou, teacherindex, targetindex))
+                    teachercandidates.append((-iou, teacherindex, int(targetrow[0])))
                 else:
                     filteredbyiou += 1
 
@@ -131,12 +162,19 @@ def matchpredictions(
 
         studentvalues = student.values[batchindex]
         studentcandidates = []
+        pairedtargetindices = torch.tensor(
+            [targetindex for teacherindex, targetindex in teacherpairs],
+            dtype=torch.long,
+            device=device,
+        )
+        pairedtargets = targets[pairedtargetindices]
+        scales = torch.minimum(pairedtargets[:, 4], pairedtargets[:, 5]).clamp_min(1.0)
+        distances = torch.linalg.vector_norm(
+            studentvalues[:, None, :2] - pairedtargets[None, :, 2:4], dim=-1
+        ) / scales
+        distancecpu = distances.detach().cpu()
         for pairindex, teacherpair in enumerate(teacherpairs):
-            targetindex = teacherpair[1]
-            target = targets[targetindex]
-            scale = torch.minimum(target[4], target[5]).clamp_min(1.0)
-            distances = torch.linalg.vector_norm(studentvalues[:, :2] - target[2:4], dim=-1) / scale
-            for studentindex, distance in enumerate(distances.detach().cpu().tolist()):
+            for studentindex, distance in enumerate(distancecpu[:, pairindex].tolist()):
                 if distance <= distancethreshold:
                     studentcandidates.append((distance, studentindex, pairindex))
 

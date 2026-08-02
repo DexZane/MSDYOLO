@@ -169,6 +169,33 @@ class CheckDecoder:
 
 class CheckMatching:
 
+    def checkmatchingtransferscandidatevaluestocpuonceperbatch(self, monkeypatch):
+        """Exact IoU must not synchronize CUDA once for every candidate pair."""
+        targets = maketargets()
+        teacher = makeprediction(
+            [[20, 20, 16, 8], [60, 30, 20, 10]],
+            [2, 4],
+            [0.0, math.pi / 6],
+        )
+        student = makeprediction(
+            [[20, 20, 16, 8], [60, 30, 20, 10]],
+            [2, 4],
+            [0.0, math.pi / 6],
+        )
+        originalcpu = torch.Tensor.cpu
+        cpucalls = 0
+
+        def countedcpu(tensor, *args, **kwargs):
+            nonlocal cpucalls
+            cpucalls += 1
+            return originalcpu(tensor, *args, **kwargs)
+
+        monkeypatch.setattr(torch.Tensor, "cpu", countedcpu)
+        matches = matchpredictions(student, teacher, targets, iouthreshold=0.5)
+
+        assert len(matches) == 2
+        assert cpucalls <= 3
+
     def checkdifferentcandidateordersmatchthesamegroundtruth(self):
         targets = maketargets()
         teacher = makeprediction(

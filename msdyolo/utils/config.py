@@ -28,6 +28,7 @@ class MSDYOLOConfig:
                 "data": "tests/fixtures/dota.yaml",
                 "cfg": "configs/models/yolov5s.yaml",
                 "weights": "",
+                "teacherweights": "",
                 "epochs": 300,
                 "batchsize": 2,
                 "imagesize": 1024,
