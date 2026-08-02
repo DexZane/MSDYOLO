@@ -50,6 +50,21 @@ in `runs/setup/training.pid`; stop only that process with
 `kill $(cat runs/setup/training.pid)`. A second setup invocation refuses to
 start while the recorded process is alive.
 
+To resume after a stopped cloud job, prepare the same checkout again and start
+from the latest student weights explicitly. This restores model weights but
+does not restore the optimizer or epoch counter:
+
+```bash
+bash scripts/setup.sh --prepare-only
+python -m msdyolo.train \
+  --config configs/train/full.yaml \
+  --weights runs/train/msdyolofull/weights/last.pt \
+  --device 0
+```
+
+The teacher checkpoint remains `runs/train/dota_teacher/weights/last.pt` and
+is required by the full configuration.
+
 ## Dataset and label contract
 
 Raw data is downloaded to `dataset/DOTA`. The preparer produces
@@ -71,7 +86,7 @@ its source snapshot, geometry, and validation marker still match.
 
 ## Training and diagnostics
 
-The four current experiment configurations are:
+The five current experiment configurations are:
 
 | Configuration | Purpose |
 | --- | --- |
@@ -124,6 +139,9 @@ compatibility wrappers; implementation imports live under `msdyolo/`.
 ```text
 configs/models/       YOLOv5-OBB model definitions
 configs/train/        baseline, ablation, teacher, and full configurations
+configs/README.md     configuration ownership and path conventions
+data/README.md        local raw/processed data policy (artifacts ignored)
+notebooks/README.md   exploratory-analysis policy
 msdyolo/data/          DOTA YAML, hyperparameters, and preparation tools
 msdyolo/models/        model implementation
 msdyolo/utils/         training, data, loss, and rotated-NMS utilities
@@ -157,6 +175,11 @@ reproducible source, configuration, tests, and documentation.
 See [docs/install.md](docs/install.md) for package installation and the
 optional rotated-NMS extension. [docs/GetStart.md](docs/GetStart.md) contains
 the short operational checklist.
+
+## Citation
+
+The repository citation metadata is in [`CITATION.cff`](CITATION.cff), which
+GitHub can use to generate a citation in its standard formats.
 
 ## License
 

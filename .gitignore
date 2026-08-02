@@ -7,6 +7,11 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.venv/
+venv/
+ENV/
+env/
+*.egg
 
 # Training
 runs/
@@ -18,6 +23,8 @@ wandb/
 
 # Data
 dataset/
+data/raw/
+data/processed/
 data/examples/
 
 # Logs
@@ -32,12 +39,16 @@ data/examples/
 
 # OS
 .DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Cache
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
 
 # Local isolated worktrees
 .worktrees/

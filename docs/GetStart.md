@@ -17,7 +17,7 @@ bash scripts/setup.sh
 The default is background training with `configs/train/full.yaml`. Use
 `--prepare-only` to stop after dataset preparation, `--force-resplit` to
 rebuild patches, `--foreground` to keep the trainer attached to the terminal,
-or `--config PATH` to select one of the four files under `configs/train/`.
+or `--config PATH` to select one of the five files under `configs/train/`.
 
 Monitor a background run with:
 
