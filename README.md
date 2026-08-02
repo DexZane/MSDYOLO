@@ -3,22 +3,22 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 MSDYOLO is a YOLOv5-OBB based rotated-object detector for aerial imagery. The
-supported cloud workflow prepares DOTA v1.5 patches and launches the full MSD
-training configuration from one command.
+supported cloud workflow prepares DOTA v1.5 patches, trains a clean DOTA
+teacher, then launches the full MSD distillation stage.
 
 ## Quick start (cloud GPU)
 
 ```bash
 git clone https://github.com/DexZane/MSDYOLO.git
 cd MSDYOLO
-bash scripts/setup.sh
+bash scripts/setup.sh --config configs/train/teacher.yaml
 ```
 
 The setup script installs the Python package, pins `setuptools==69.5.1` for
 Python 3.12 compatibility, downloads DOTA v1.5 through the OpenDataLab SDK,
 normalizes its directory layout, validates and atomically builds 1024-pixel
-patches (200-pixel gap), downloads `yolov5s.pt`, and starts
-`configs/train/full.yaml` in the background.
+patches (200-pixel gap), downloads `yolov5s.pt`, and starts the requested
+configuration in the background.
 
 Useful modes:
 
@@ -28,6 +28,22 @@ bash scripts/setup.sh --force-resplit                # rebuild a stale/current s
 bash scripts/setup.sh --foreground                   # keep training in this terminal
 bash scripts/setup.sh --config configs/train/degradation.yaml
 ```
+
+Full MSD training has an explicit two-stage hand-off. `yolov5s.pt` is a COCO
+checkpoint: its 80-class detection head cannot be used as a DOTA v1.5 teacher
+because the 16-class head is newly initialized. Train the clean teacher first,
+then use its checkpoint for the student/distillation stage:
+
+```bash
+bash scripts/setup.sh --config configs/train/teacher.yaml
+# wait for runs/train/dota_teacher/weights/last.pt
+bash scripts/setup.sh --config configs/train/full.yaml
+```
+
+The full configuration refuses to start if that DOTA-adapted teacher checkpoint
+does not exist. The trainer checkpoints after every epoch, so
+`runs/train/dota_teacher/weights/last.pt` remains available if the cloud job is
+interrupted.
 
 Background output is written to `training.log`. The exact process id is kept
 in `runs/setup/training.pid`; stop only that process with
@@ -62,7 +78,8 @@ The four current experiment configurations are:
 | `configs/train/baseline.yaml` | small CPU/fixture smoke test; distillation is off |
 | `configs/train/degradation.yaml` | degradation branch |
 | `configs/train/clearbranch.yaml` | degradation plus clear branch |
-| `configs/train/full.yaml` | cloud default: degradation, clear branch, distillation |
+| `configs/train/teacher.yaml` | clean DOTA v1.5 baseline; produces the frozen teacher |
+| `configs/train/full.yaml` | degradation, clear branch, distillation from the teacher checkpoint |
 
 For a direct run after data preparation:
 
@@ -72,9 +89,10 @@ python -m msdyolo.train --config configs/train/full.yaml --device 0
 
 Cloud configs use four dataloader workers to avoid the multiprocess deadlock
 seen with eight workers. In a real full-mode run, the first epoch is healthy
-when its log contains `match > 0`. A zero-match baseline smoke test is
-intentional because that configuration has no distillation targets; it is not
-a valid cloud-training acceptance signal.
+when its log contains `match > 0`. A zero-match teacher-stage smoke test is
+intentional because distillation is disabled there; it is not a valid
+full-training acceptance signal. Matching makes at most three CPU snapshots
+per batch, instead of synchronizing CUDA once per candidate/target pair.
 
 For a deterministic local CPU check:
 
@@ -105,7 +123,7 @@ compatibility wrappers; implementation imports live under `msdyolo/`.
 
 ```text
 configs/models/       YOLOv5-OBB model definitions
-configs/train/        four current experiment configurations
+configs/train/        baseline, ablation, teacher, and full configurations
 msdyolo/data/          DOTA YAML, hyperparameters, and preparation tools
 msdyolo/models/        model implementation
 msdyolo/utils/         training, data, loss, and rotated-NMS utilities

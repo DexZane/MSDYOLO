@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 class MSDYOLOTrainer:
     """管理 MSDYOLO 完整训练流程的训练器。"""
 
-    def __init__(self, model, config, device):
+    def __init__(self, model, config, device, teachermodel=None):
         self.model = model
+        self.teachermodel = teachermodel if teachermodel is not None else model
         self.config = config
         self.device = device
         if not config.validate():
@@ -29,6 +30,11 @@ class MSDYOLOTrainer:
         self.clearbranchenabled = config.get("clearbranch.enabled", False)
         self.distillationenabled = config.get("distillation.enabled", False)
         self.verbose = False  # 默认关闭详细日志，由外部控制
+
+        if teachermodel is not None:
+            self.teachermodel.eval()
+            for parameter in self.teachermodel.parameters():
+                parameter.requires_grad_(False)
 
         # 蒸馏参数
         self.alpha = config.get("distillation.alpha", 0.1)
@@ -109,7 +115,9 @@ class MSDYOLOTrainer:
 
         # full模式：完整蒸馏流程
         # 阶段1：清晰分支教师前向（eval + no_grad）
-        teacher = teacherforward(self.model, images, self.topk, verbose=self.verbose)
+        teacher = teacherforward(
+            self.teachermodel, images, self.topk, verbose=self.verbose
+        )
 
         # 阶段2：退化视图学生前向（train模式）
         self.model.train()

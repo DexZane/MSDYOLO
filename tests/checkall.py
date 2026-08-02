@@ -12,14 +12,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CheckDelivery:
 
-    def checkfourexperimentconfigsremain(self):
-        """验证保留4个实验配置文件。"""
+    def checkfiveexperimentconfigsremain(self):
+        """验证云端教师阶段与四个实验配置一起交付。"""
         names = {path.name for path in (ROOT / "configs" / "train").glob("*.yaml")}
         assert names == {
             "baseline.yaml",
             "degradation.yaml",
             "clearbranch.yaml",
             "full.yaml",
+            "teacher.yaml",
         }
 
     def checkallconfigsvalidate(self):
@@ -46,10 +47,22 @@ class CheckDelivery:
         assert config.get("training.data") == "msdyolo/data/dota.yaml"
         assert config.get("training.cfg") == "configs/models/yolov5s.yaml"
         assert config.get("training.weights") == "yolov5s.pt"
+        assert config.get("training.teacherweights") == "runs/train/dota_teacher/weights/last.pt"
         assert config.get("training.epochs") == 200
         assert config.get("training.batchsize") == 16
         assert config.get("training.imagesize") == 1024
         assert config.get("training.device") == "0"
+
+    def checkteacherconfigisacleancloudbaseline(self):
+        config = MSDYOLOConfig(ROOT / "configs" / "train" / "teacher.yaml")
+        assert config.get("experiment.name") == "dota_teacher"
+        assert config.get("experiment.phase") == 1
+        assert config.get("training.data") == "msdyolo/data/dota.yaml"
+        assert config.get("training.weights") == "yolov5s.pt"
+        assert config.get("training.batchsize") == 16
+        assert not config.get("degradation.enabled")
+        assert not config.get("clearbranch.enabled")
+        assert not config.get("distillation.enabled")
 
     def checknonbaselinemodesactivateimagedegradation(self):
         for name in ("degradation.yaml", "clearbranch.yaml", "full.yaml"):

@@ -1,5 +1,6 @@
 """P0-A.2 Trainer集成验证测试。"""
 
+import copy
 import math
 import sys
 from pathlib import Path
@@ -221,6 +222,31 @@ def controlledbatch(device):
 
 class CheckP0A2Integration:
     """P0-A.2 Trainer集成验证。"""
+
+    def checkfullmodeusesaseparatefrozenteacher(self, controlledmodel, controlledbatch, device):
+        """Full mode keeps teacher parameters outside the student optimizer graph."""
+        images, targets = controlledbatch
+        config = MSDYOLOConfig()
+        config.set("experiment.phase", 2)
+        config.applyablationmode("full")
+        teacher = copy.deepcopy(controlledmodel)
+
+        trainer = MSDYOLOTrainer(
+            controlledmodel, config, device, teachermodel=teacher
+        )
+
+        assert trainer.teachermodel is teacher
+        assert not teacher.training
+        assert all(not parameter.requires_grad for parameter in teacher.parameters())
+
+        def computeloss(predictions, unusedtargets):
+            loss = sum(output.abs().mean() for output in predictions)
+            return loss, loss.detach().repeat(4)
+
+        result = trainer.processbatch(images, targets, computeloss)
+
+        assert torch.isfinite(result["loss"])
+        assert not teacher.training
 
     def checkdeterministicnonemptymatch(self, controlledmodel, controlledbatch, hypconfig, device):
         """确定性非空匹配集成测试：验证完整蒸馏训练图。"""

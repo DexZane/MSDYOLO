@@ -6,6 +6,7 @@ training:
   data: msdyolo/data/dota.yaml
   cfg: configs/models/yolov5s.yaml
   weights: yolov5s.pt
+  teacherweights: runs/train/dota_teacher/weights/last.pt
   epochs: 200
   batchsize: 16
   imagesize: 1024
