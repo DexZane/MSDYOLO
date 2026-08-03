@@ -150,9 +150,10 @@ checkexistingtraining
 
 echo "Installing cloud dependencies..."
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
-"$PYTHON_BIN" -m pip install -q "numpy<2.0"
 "$PYTHON_BIN" -m pip install -q -e .
 "$PYTHON_BIN" -m pip install -q kaggle
+# Force numpy<2.0 after all dependencies (critical for PyTorch 2.2.2 compatibility)
+"$PYTHON_BIN" -m pip install -q --force-reinstall "numpy<2.0"
 # Dependency resolution may upgrade setuptools. Restore the pin last.
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
 
