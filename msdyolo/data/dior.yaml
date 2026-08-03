@@ -8,27 +8,27 @@ train: train/images
 val: val/images
 test: test/images  # Optional
 
-# Classes (20 categories)
+# Classes (20 categories - match DIOR-R dataset exactly)
 nc: 20
 names: [
   'airplane',
   'airport',
-  'baseball-field',
-  'basketball-court',
+  'baseballfield',
+  'basketballcourt',
   'bridge',
   'chimney',
   'dam',
-  'expressway-service-area',
-  'expressway-toll-station',
-  'golf-course',
-  'ground-track-field',
+  'Expressway-Service-area',
+  'Expressway-toll-station',
+  'golffield',
+  'groundtrackfield',
   'harbor',
   'overpass',
   'ship',
   'stadium',
-  'storage-tank',
-  'tennis-court',
-  'train-station',
+  'storagetank',
+  'tenniscourt',
+  'trainstation',
   'vehicle',
   'windmill'
 ]
