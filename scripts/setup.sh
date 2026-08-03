@@ -7,19 +7,23 @@ usage() {
     cat <<'EOF'
 Usage: bash scripts/setup.sh [options]
 
-Prepare DIOR dataset and launch full MSDYOLO training.
+Prepare DIOR dataset and launch MSDYOLO training.
 
 Options:
   --prepare-only       Install and prepare data, but do not start training.
   --foreground         Run training in this terminal instead of the background.
-  --config PATH        Training config (default: configs/train/full.yaml).
+  --config PATH        Training config (default: configs/train/teacher.yaml).
   -h, --help           Show this help and exit.
+
+Training stages:
+  1. Teacher (baseline): bash scripts/setup.sh
+  2. Full (distillation): bash scripts/setup.sh --config configs/train/full.yaml
 EOF
 }
 
 PREPARE_ONLY=false
 FOREGROUND=false
-CONFIG="configs/train/full.yaml"
+CONFIG="configs/train/teacher.yaml"
 
 while (($#)); do
     case "$1" in
