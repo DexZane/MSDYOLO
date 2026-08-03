@@ -212,6 +212,10 @@ print(f"  Train images: {len(list((target / 'train' / 'images').glob('*.jpg')))}
 print(f"  Val images: {len(list((target / 'val' / 'images').glob('*.jpg')))}")
 print(f"  Test images: {len(list((target / 'test' / 'images').glob('*.jpg')))}")
 PYEOF
+
+    # Convert labels from YOLOv11 to YOLOv5-OBB format
+    echo "Converting DIOR-R labels to YOLOv5-OBB format..."
+    "$PYTHON_BIN" msdyolo/data/scripts/convert_dior_labels.py "$DATASET_DIR"
 fi
 
 if [[ "$PREPARE_ONLY" == true ]]; then
