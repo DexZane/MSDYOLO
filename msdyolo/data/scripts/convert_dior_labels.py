@@ -25,6 +25,8 @@ def convert_label_file(input_path: Path, output_path: Path):
         lines = f.readlines()
 
     converted = []
+    skipped = 0
+
     for line in lines:
         parts = line.strip().split()
         if len(parts) != 9:
@@ -32,13 +34,26 @@ def convert_label_file(input_path: Path, output_path: Path):
             continue
 
         class_id = int(parts[0])
-        coords = parts[1:9]
+        coords = [float(x) for x in parts[1:9]]
+
+        # Clip coordinates to [0, 1] range to fix boundary issues
+        coords = [max(0.0, min(1.0, x)) for x in coords]
+
+        # Check if any coordinate was clipped
+        original_coords = [float(x) for x in parts[1:9]]
+        if coords != original_coords:
+            skipped += 1
+
         class_name = CLASS_NAMES[class_id]
         difficulty = '0'  # DIOR-R doesn't have difficulty, default to 0
 
         # YOLOv5-OBB format: x1 y1 x2 y2 x3 y3 x4 y4 class_name difficulty
-        converted_line = ' '.join(coords + [class_name, difficulty])
+        coords_str = [f"{x:.6f}" for x in coords]
+        converted_line = ' '.join(coords_str + [class_name, difficulty])
         converted.append(converted_line)
+
+    if skipped > 0:
+        print(f"  {input_path.name}: clipped {skipped} objects with out-of-bound coordinates")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, 'w') as f:
