@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 
 # DIOR class names (in order of class_id 0-19)
+# Match DIOR-R dataset exactly (no hyphens)
 CLASS_NAMES = [
     'airplane', 'airport', 'baseballfield', 'basketballcourt',
     'bridge', 'chimney', 'dam', 'Expressway-Service-area',
