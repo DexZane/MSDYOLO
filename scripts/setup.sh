@@ -122,7 +122,7 @@ downloadweights() {
     mkdir -p "$(dirname "$WEIGHTS_FILE")"
     WEIGHTS_TMP="$(mktemp "${WEIGHTS_FILE}.download.XXXXXX")"
     echo "Downloading pretrained yolov5s weights..."
-    if ! "$PYTHON_BIN" -c 'from urllib.request import urlretrieve; import sys; urlretrieve(sys.argv[1], sys.argv[2])' "$WEIGHTS_URL" "$WEIGHTS_TMP"; then
+    if ! "$PYTHON_BIN" -c 'from urllib.request import urlretrieve; import sys, ssl; ssl._create_default_https_context = ssl._create_unverified_context; urlretrieve(sys.argv[1], sys.argv[2])' "$WEIGHTS_URL" "$WEIGHTS_TMP"; then
         rm -f "$WEIGHTS_TMP"
         echo "error: failed to download pretrained weights from $WEIGHTS_URL" >&2
         exit 1
@@ -146,6 +146,7 @@ checkexistingtraining
 
 echo "Installing cloud dependencies..."
 "$PYTHON_BIN" -m pip install -q "setuptools==69.5.1"
+"$PYTHON_BIN" -m pip install -q "numpy<2.0"
 "$PYTHON_BIN" -m pip install -q -e .
 "$PYTHON_BIN" -m pip install -q kaggle
 # Dependency resolution may upgrade setuptools. Restore the pin last.
